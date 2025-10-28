@@ -262,7 +262,6 @@
 
     <script>
         const socket = io();
-        let timerInterval = null;
         let currentState = {
             totalSeconds: 0,
             remainingSeconds: 0,
@@ -272,41 +271,11 @@
             isBlackedOut: false
         };
 
-        // Connect to socket and receive initial state
+        // Connect to socket and receive updates from server
         socket.on('timerState', (state) => {
             currentState = state;
             updateDisplay();
-
-            // Handle timer running state
-            if (state.isRunning && !timerInterval) {
-                startLocalTimer();
-            } else if (!state.isRunning && timerInterval) {
-                stopLocalTimer();
-            }
         });
-
-        function startLocalTimer() {
-            if (timerInterval) return;
-
-            timerInterval = setInterval(() => {
-                if (currentState.remainingSeconds > 0) {
-                    currentState.remainingSeconds--;
-                    updateDisplay();
-
-                    // Send tick to server to keep all clients in sync
-                    socket.emit('tick', currentState.remainingSeconds);
-                } else {
-                    stopLocalTimer();
-                }
-            }, 1000);
-        }
-
-        function stopLocalTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-        }
 
         function updateDisplay() {
             // Update timer name
@@ -368,11 +337,6 @@
 
         // Initial display update
         updateDisplay();
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            stopLocalTimer();
-        });
     </script>
 </body>
 </html>

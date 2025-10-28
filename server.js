@@ -22,6 +22,34 @@ let timerState = {
   isBlackedOut: false
 };
 
+// Server-side timer interval
+let serverTimerInterval = null;
+
+function startServerTimer() {
+  if (serverTimerInterval) {
+    clearInterval(serverTimerInterval);
+  }
+
+  serverTimerInterval = setInterval(() => {
+    if (timerState.isRunning && timerState.remainingSeconds > 0) {
+      timerState.remainingSeconds--;
+      io.emit('timerState', timerState);
+    } else if (timerState.remainingSeconds <= 0) {
+      timerState.isRunning = false;
+      clearInterval(serverTimerInterval);
+      serverTimerInterval = null;
+      io.emit('timerState', timerState);
+    }
+  }, 1000);
+}
+
+function stopServerTimer() {
+  if (serverTimerInterval) {
+    clearInterval(serverTimerInterval);
+    serverTimerInterval = null;
+  }
+}
+
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -59,17 +87,20 @@ io.on('connection', (socket) => {
 
   socket.on('startTimer', () => {
     timerState.isRunning = true;
+    startServerTimer();
     io.emit('timerState', timerState);
   });
 
   socket.on('pauseTimer', () => {
     timerState.isRunning = false;
+    stopServerTimer();
     io.emit('timerState', timerState);
   });
 
   socket.on('resetTimer', () => {
     timerState.remainingSeconds = timerState.totalSeconds;
     timerState.isRunning = false;
+    stopServerTimer();
     io.emit('timerState', timerState);
   });
 
@@ -90,11 +121,6 @@ io.on('connection', (socket) => {
 
   socket.on('toggleBlackout', (isBlackedOut) => {
     timerState.isBlackedOut = isBlackedOut;
-    io.emit('timerState', timerState);
-  });
-
-  socket.on('tick', (remainingSeconds) => {
-    timerState.remainingSeconds = remainingSeconds;
     io.emit('timerState', timerState);
   });
 
