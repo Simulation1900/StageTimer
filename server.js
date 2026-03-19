@@ -9,119 +9,144 @@ const io = socketIO(server);
 
 const PORT = process.env.PORT || 3000;
 
-// Serve static files
 app.use(express.static('public'));
 
-// Timer state
-let timerState = {
-  totalSeconds: 0,
-  remainingSeconds: 0,
-  isRunning: false,
-  timerName: 'Simulation Timer',
-  message: { text: '', color: 'black' },
-  isBlackedOut: false
+const TIMER_IDS = ['timer-1', 'timer-2', 'timer-3'];
+
+function createTimerState(name) {
+  return {
+    totalSeconds: 0,
+    remainingSeconds: 0,
+    isRunning: false,
+    timerName: name,
+    message: { text: '', color: 'black' },
+    isBlackedOut: false
+  };
+}
+
+const timers = {
+  'timer-1': createTimerState('Timer 1'),
+  'timer-2': createTimerState('Timer 2'),
+  'timer-3': createTimerState('Timer 3')
 };
 
-// Server-side timer interval
-let serverTimerInterval = null;
+const serverIntervals = {
+  'timer-1': null,
+  'timer-2': null,
+  'timer-3': null
+};
 
-function startServerTimer() {
-  if (serverTimerInterval) {
-    clearInterval(serverTimerInterval);
-  }
+function broadcast(timerId) {
+  io.to(timerId).emit('timerState', { timerId, state: timers[timerId] });
+}
 
-  serverTimerInterval = setInterval(() => {
-    if (timerState.isRunning && timerState.remainingSeconds > 0) {
-      timerState.remainingSeconds--;
-      io.emit('timerState', timerState);
-    } else if (timerState.remainingSeconds <= 0) {
-      timerState.isRunning = false;
-      clearInterval(serverTimerInterval);
-      serverTimerInterval = null;
-      io.emit('timerState', timerState);
+function startServerTimer(timerId) {
+  if (serverIntervals[timerId]) clearInterval(serverIntervals[timerId]);
+  serverIntervals[timerId] = setInterval(() => {
+    const timer = timers[timerId];
+    if (timer.isRunning && timer.remainingSeconds > 0) {
+      timer.remainingSeconds--;
+      broadcast(timerId);
+    } else if (timer.remainingSeconds <= 0) {
+      timer.isRunning = false;
+      clearInterval(serverIntervals[timerId]);
+      serverIntervals[timerId] = null;
+      broadcast(timerId);
     }
   }, 1000);
 }
 
-function stopServerTimer() {
-  if (serverTimerInterval) {
-    clearInterval(serverTimerInterval);
-    serverTimerInterval = null;
+function stopServerTimer(timerId) {
+  if (serverIntervals[timerId]) {
+    clearInterval(serverIntervals[timerId]);
+    serverIntervals[timerId] = null;
   }
 }
 
 // Routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/controller', (req, res) => res.sendFile(path.join(__dirname, 'public', 'controller.html')));
+app.get('/endpoint', (req, res) => res.sendFile(path.join(__dirname, 'public', 'endpoint.html')));
+app.get('/director', (req, res) => res.sendFile(path.join(__dirname, 'public', 'director.html')));
 
-app.get('/controller', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'controller.html'));
-});
-
-app.get('/endpoint', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'endpoint.html'));
-});
-
-// Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
-  // Send current state to newly connected client
-  socket.emit('timerState', timerState);
+  // Send all current timer states on connection
+  socket.emit('allTimerStates', timers);
 
-  // Handle password authentication
   socket.on('authenticate', (password) => {
     const correctPassword = process.env.CONTROLLER_PASSWORD || 'Belmont1900!';
-    const isAuthenticated = password === correctPassword;
-    socket.emit('authResult', isAuthenticated);
+    socket.emit('authResult', password === correctPassword);
   });
 
-  // Handle timer controls from controller
-  socket.on('setTimer', (seconds) => {
-    timerState.totalSeconds = seconds;
-    timerState.remainingSeconds = seconds;
-    timerState.isRunning = false;
-    io.emit('timerState', timerState);
+  // Room management — clients subscribe to specific timer(s)
+  socket.on('joinTimer', (timerId) => {
+    if (TIMER_IDS.includes(timerId)) socket.join(timerId);
   });
 
-  socket.on('startTimer', () => {
-    timerState.isRunning = true;
-    startServerTimer();
-    io.emit('timerState', timerState);
+  socket.on('leaveTimer', (timerId) => {
+    if (TIMER_IDS.includes(timerId)) socket.leave(timerId);
   });
 
-  socket.on('pauseTimer', () => {
-    timerState.isRunning = false;
-    stopServerTimer();
-    io.emit('timerState', timerState);
+  socket.on('joinAll', () => {
+    TIMER_IDS.forEach(id => socket.join(id));
   });
 
-  socket.on('resetTimer', () => {
-    timerState.remainingSeconds = timerState.totalSeconds;
-    timerState.isRunning = false;
-    stopServerTimer();
-    io.emit('timerState', timerState);
+  // Timer control events — all require { timerId }
+  socket.on('setTimer', ({ timerId, seconds }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].totalSeconds = seconds;
+    timers[timerId].remainingSeconds = seconds;
+    timers[timerId].isRunning = false;
+    stopServerTimer(timerId);
+    broadcast(timerId);
   });
 
-  socket.on('updateTimerName', (name) => {
-    timerState.timerName = name;
-    io.emit('timerState', timerState);
+  socket.on('startTimer', ({ timerId }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].isRunning = true;
+    startServerTimer(timerId);
+    broadcast(timerId);
   });
 
-  socket.on('sendMessage', (messageData) => {
-    timerState.message = messageData;
-    io.emit('timerState', timerState);
+  socket.on('pauseTimer', ({ timerId }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].isRunning = false;
+    stopServerTimer(timerId);
+    broadcast(timerId);
   });
 
-  socket.on('clearMessage', () => {
-    timerState.message = { text: '', color: 'black' };
-    io.emit('timerState', timerState);
+  socket.on('resetTimer', ({ timerId }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].remainingSeconds = timers[timerId].totalSeconds;
+    timers[timerId].isRunning = false;
+    stopServerTimer(timerId);
+    broadcast(timerId);
   });
 
-  socket.on('toggleBlackout', (isBlackedOut) => {
-    timerState.isBlackedOut = isBlackedOut;
-    io.emit('timerState', timerState);
+  socket.on('updateTimerName', ({ timerId, name }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].timerName = name;
+    broadcast(timerId);
+  });
+
+  socket.on('sendMessage', ({ timerId, text, color }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].message = { text, color };
+    broadcast(timerId);
+  });
+
+  socket.on('clearMessage', ({ timerId }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].message = { text: '', color: 'black' };
+    broadcast(timerId);
+  });
+
+  socket.on('toggleBlackout', ({ timerId, isBlackedOut }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    timers[timerId].isBlackedOut = isBlackedOut;
+    broadcast(timerId);
   });
 
   socket.on('disconnect', () => {

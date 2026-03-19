@@ -57,17 +57,6 @@
             pointer-events: none;
         }
 
-        .container {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
         .header {
             position: absolute;
             top: 0;
@@ -76,11 +65,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 40px;
+            padding: 15px 40px;
             background: rgba(255, 255, 255, 0.6);
             backdrop-filter: blur(10px);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             z-index: 2;
+            gap: 20px;
         }
 
         .timer-name {
@@ -91,16 +81,67 @@
             text-transform: uppercase;
             color: #1d4290;
             text-shadow: 1px 1px 2px rgba(106, 179, 231, 0.3);
+            flex-shrink: 0;
+        }
+
+        /* Timer selector tabs in header */
+        .timer-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid rgba(29, 66, 144, 0.15);
+        }
+
+        .timer-tab-btn {
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            background: transparent;
+            color: #5a5a5a;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .timer-tab-btn:hover {
+            background: rgba(106, 179, 231, 0.2);
+            color: #1d4290;
+        }
+
+        .timer-tab-btn.active {
+            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(29, 66, 144, 0.3);
         }
 
         .logo-area {
             width: 120px;
-            height: 80px;
+            height: 60px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 5px;
+            flex-shrink: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            padding-top: 100px;
         }
 
         .timer-display {
@@ -114,28 +155,16 @@
             letter-spacing: 10px;
         }
 
-        .timer-display.normal {
-            color: #1d4290;
-        }
-
-        .timer-display.warning {
-            color: #f39c12;
-        }
-
+        .timer-display.normal { color: #1d4290; }
+        .timer-display.warning { color: #f39c12; }
         .timer-display.critical {
             color: #862633;
             animation: pulse 1s ease-in-out infinite;
         }
 
         @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.8;
-                transform: scale(1.02);
-            }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
         }
 
         .progress-container {
@@ -185,18 +214,14 @@
 
         .blackout {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: #000000;
             z-index: 9999;
             display: none;
         }
 
-        .blackout.active {
-            display: block;
-        }
+        .blackout.active { display: block; }
 
         .back-link {
             position: absolute;
@@ -216,25 +241,15 @@
         .back-link:hover {
             background: rgba(106, 179, 231, 0.2);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(29, 66, 144, 0.2);
         }
 
         @media (max-width: 768px) {
-            .timer-display {
-                font-size: 6rem;
-            }
-
-            .timer-name {
-                font-size: 1.5rem;
-            }
-
-            .message-display {
-                font-size: 2rem;
-            }
-
-            .progress-container {
-                width: 90%;
-            }
+            .timer-display { font-size: 6rem; }
+            .timer-name { font-size: 1.2rem; }
+            .message-display { font-size: 2rem; }
+            .progress-container { width: 90%; }
+            .header { padding: 10px 20px; flex-wrap: wrap; }
+            .logo-area { width: 80px; height: 50px; }
         }
     </style>
 </head>
@@ -242,19 +257,22 @@
     <div class="blackout" id="blackout"></div>
 
     <div class="header">
-        <div class="timer-name" id="timerName">Simulation Timer</div>
-        <div class="logo-area" id="logoArea">
+        <div class="timer-name" id="timerName">Timer</div>
+        <div class="timer-tabs" id="timerTabs">
+            <button class="timer-tab-btn active" id="endpointtab-timer-1" onclick="selectTimer('timer-1')">Timer 1</button>
+            <button class="timer-tab-btn" id="endpointtab-timer-2" onclick="selectTimer('timer-2')">Timer 2</button>
+            <button class="timer-tab-btn" id="endpointtab-timer-3" onclick="selectTimer('timer-3')">Timer 3</button>
+        </div>
+        <div class="logo-area">
             <img src="/logo.png" alt="Belmont Simulation" style="max-width: 100%; max-height: 100%; object-fit: contain;">
         </div>
     </div>
 
     <div class="container">
         <div class="timer-display normal" id="timerDisplay">00:00:00</div>
-
         <div class="progress-container">
             <div class="progress-bar" id="progressBar" style="width: 100%;"></div>
         </div>
-
         <div class="message-display" id="messageDisplay"></div>
     </div>
 
@@ -262,70 +280,98 @@
 
     <script>
         const socket = io();
-        let currentState = {
-            totalSeconds: 0,
-            remainingSeconds: 0,
-            isRunning: false,
-            timerName: 'Simulation Timer',
-            message: { text: '', color: 'white' },
-            isBlackedOut: false
+
+        // Read ?timer=1, ?timer=2, or ?timer=3 from URL; default to timer-1
+        const urlParam = new URLSearchParams(window.location.search).get('timer');
+        let activeTimerId = ['1','2','3'].includes(urlParam) ? `timer-${urlParam}` : 'timer-1';
+
+        const timerStates = {
+            'timer-1': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 1', message: { text: '', color: 'white' }, isBlackedOut: false },
+            'timer-2': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 2', message: { text: '', color: 'white' }, isBlackedOut: false },
+            'timer-3': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 3', message: { text: '', color: 'white' }, isBlackedOut: false }
         };
 
-        // Connect to socket and receive updates from server
-        socket.on('timerState', (state) => {
-            currentState = state;
+        // On connect: load all states, then subscribe to active timer
+        socket.on('allTimerStates', (states) => {
+            Object.keys(states).forEach(id => { timerStates[id] = states[id]; });
+            updateTabLabels();
+            socket.emit('joinTimer', activeTimerId);
+            setActiveTab(activeTimerId);
             updateDisplay();
         });
 
+        // Receive real-time updates for subscribed timer
+        socket.on('timerState', ({ timerId, state }) => {
+            timerStates[timerId] = state;
+            updateTabLabel(timerId);
+            if (timerId === activeTimerId) updateDisplay();
+        });
+
+        function selectTimer(timerId) {
+            socket.emit('leaveTimer', activeTimerId);
+            activeTimerId = timerId;
+            socket.emit('joinTimer', activeTimerId);
+            setActiveTab(activeTimerId);
+            updateDisplay();
+
+            // Update URL without reload for bookmarkability
+            const url = new URL(window.location);
+            url.searchParams.set('timer', timerId.replace('timer-', ''));
+            window.history.replaceState({}, '', url);
+        }
+
+        function setActiveTab(timerId) {
+            document.querySelectorAll('.timer-tab-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.getElementById('endpointtab-' + timerId);
+            if (btn) btn.classList.add('active');
+        }
+
+        function updateTabLabel(timerId) {
+            const btn = document.getElementById('endpointtab-' + timerId);
+            if (btn) btn.textContent = timerStates[timerId].timerName;
+        }
+
+        function updateTabLabels() {
+            ['timer-1', 'timer-2', 'timer-3'].forEach(updateTabLabel);
+        }
+
         function updateDisplay() {
-            // Update timer name
-            document.getElementById('timerName').textContent = currentState.timerName;
+            const state = timerStates[activeTimerId];
 
-            // Update timer display
+            document.getElementById('timerName').textContent = state.timerName;
+
             const timerDisplay = document.getElementById('timerDisplay');
-            timerDisplay.textContent = formatTime(currentState.remainingSeconds);
+            timerDisplay.textContent = formatTime(state.remainingSeconds);
 
-            // Calculate percentage remaining
-            const percentRemaining = currentState.totalSeconds > 0
-                ? (currentState.remainingSeconds / currentState.totalSeconds) * 100
+            const percentRemaining = state.totalSeconds > 0
+                ? (state.remainingSeconds / state.totalSeconds) * 100
                 : 100;
 
-            // Update timer color based on percentage
             timerDisplay.classList.remove('normal', 'warning', 'critical');
             if (percentRemaining <= 5) {
                 timerDisplay.classList.add('critical');
-            } else if (percentRemaining <= 20) {  // 80% elapsed = 20% remaining
+            } else if (percentRemaining <= 20) {
                 timerDisplay.classList.add('warning');
             } else {
                 timerDisplay.classList.add('normal');
             }
 
-            // Update progress bar
             const progressBar = document.getElementById('progressBar');
             progressBar.style.width = percentRemaining + '%';
             progressBar.classList.remove('warning', 'critical');
-            if (percentRemaining <= 5) {
-                progressBar.classList.add('critical');
-            } else if (percentRemaining <= 20) {
-                progressBar.classList.add('warning');
-            }
+            if (percentRemaining <= 5) progressBar.classList.add('critical');
+            else if (percentRemaining <= 20) progressBar.classList.add('warning');
 
-            // Update message display
             const messageDisplay = document.getElementById('messageDisplay');
-            if (currentState.message.text) {
-                messageDisplay.textContent = currentState.message.text;
-                messageDisplay.style.color = currentState.message.color;
+            if (state.message.text) {
+                messageDisplay.textContent = state.message.text;
+                messageDisplay.style.color = state.message.color;
             } else {
                 messageDisplay.textContent = '';
             }
 
-            // Update blackout
             const blackout = document.getElementById('blackout');
-            if (currentState.isBlackedOut) {
-                blackout.classList.add('active');
-            } else {
-                blackout.classList.remove('active');
-            }
+            blackout.classList.toggle('active', state.isBlackedOut);
         }
 
         function formatTime(seconds) {
@@ -335,7 +381,6 @@
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
-        // Initial display update
         updateDisplay();
     </script>
 </body>

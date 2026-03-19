@@ -15,6 +15,31 @@
             box-sizing: border-box;
         }
 
+        /* ── Color themes — one per timer ─────────────────────────── */
+        :root {
+            --t-primary:      #1d4290;
+            --t-secondary:    #2557b8;
+            --t-accent:       #6ab3e7;
+            --t-accent-alpha: rgba(106, 179, 231, 0.12);
+            --t-glow:         rgba(29, 66, 144, 0.35);
+        }
+
+        [data-theme="timer-2"] {
+            --t-primary:      #862633;
+            --t-secondary:    #a83545;
+            --t-accent:       #d4849a;
+            --t-accent-alpha: rgba(212, 132, 154, 0.12);
+            --t-glow:         rgba(134, 38, 51, 0.35);
+        }
+
+        [data-theme="timer-3"] {
+            --t-primary:      #1a7a6e;
+            --t-secondary:    #22a090;
+            --t-accent:       #5ecfc3;
+            --t-accent-alpha: rgba(94, 207, 195, 0.12);
+            --t-glow:         rgba(26, 122, 110, 0.35);
+        }
+
         body {
             font-family: 'Montserrat', sans-serif;
             background:
@@ -31,35 +56,29 @@
         body::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
             background:
                 linear-gradient(60deg, transparent 30%, rgba(106, 179, 231, 0.03) 30%, rgba(106, 179, 231, 0.03) 32%, transparent 32%, transparent 70%, rgba(29, 66, 144, 0.05) 70%, rgba(29, 66, 144, 0.05) 72%, transparent 72%),
                 linear-gradient(120deg, transparent 20%, rgba(134, 38, 51, 0.03) 20%, rgba(134, 38, 51, 0.03) 22%, transparent 22%, transparent 60%, rgba(106, 179, 231, 0.04) 60%, rgba(106, 179, 231, 0.04) 62%, transparent 62%);
             background-size: 120px 120px, 80px 80px;
-            z-index: 0;
-            pointer-events: none;
+            z-index: 0; pointer-events: none;
         }
 
         body::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background:
                 radial-gradient(ellipse at 20% 30%, rgba(106, 179, 231, 0.08) 0%, transparent 50%),
                 radial-gradient(ellipse at 80% 70%, rgba(29, 66, 144, 0.06) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
+            z-index: 0; pointer-events: none;
         }
 
+        /* ── Auth ─────────────────────────────────────────────────── */
         .auth-screen {
-            position: relative;
-            z-index: 1;
+            position: relative; z-index: 1;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -73,8 +92,7 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
             text-align: center;
-            max-width: 400px;
-            width: 100%;
+            max-width: 400px; width: 100%;
             border: 1px solid rgba(255, 255, 255, 0.8);
         }
 
@@ -87,9 +105,9 @@
             margin-bottom: 30px;
         }
 
+        /* ── Controller screen ────────────────────────────────────── */
         .controller-screen {
-            position: relative;
-            z-index: 1;
+            position: relative; z-index: 1;
             display: none;
             max-width: 1400px;
             margin: 0 auto;
@@ -99,7 +117,7 @@
             background: rgba(255, 255, 255, 0.7);
             padding: 20px;
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -113,19 +131,112 @@
             font-weight: 600;
             letter-spacing: 2px;
             text-transform: uppercase;
-            color: #1d4290;
+            color: var(--t-primary);
+            transition: color 0.4s ease;
         }
 
         .logo-area {
-            width: 100px;
-            height: 60px;
+            width: 100px; height: 60px;
             border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             padding: 5px;
         }
 
+        /* ── Tab bar ──────────────────────────────────────────────── */
+        .tab-bar {
+            display: flex;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .tab-btn {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 10px 0;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            background: transparent;
+            color: #5a5a5a;
+            transition: all 0.25s ease;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Inactive tabs show a subtle colored underline per timer */
+        #tab-timer-1 { border-bottom-color: rgba(29, 66, 144, 0.25); }
+        #tab-timer-2 { border-bottom-color: rgba(134, 38, 51, 0.25); }
+        #tab-timer-3 { border-bottom-color: rgba(26, 122, 110, 0.25); }
+
+        .tab-btn:hover {
+            background: var(--t-accent-alpha);
+            color: var(--t-primary);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--t-primary) 0%, var(--t-secondary) 100%);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 14px var(--t-glow);
+        }
+
+        /* Each timer's active tab keeps its own fixed color regardless of theme variable */
+        #tab-timer-1.active {
+            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
+            box-shadow: 0 4px 14px rgba(29, 66, 144, 0.4);
+        }
+        #tab-timer-2.active {
+            background: linear-gradient(135deg, #862633 0%, #a83545 100%);
+            box-shadow: 0 4px 14px rgba(134, 38, 51, 0.4);
+        }
+        #tab-timer-3.active {
+            background: linear-gradient(135deg, #1a7a6e 0%, #22a090 100%);
+            box-shadow: 0 4px 14px rgba(26, 122, 110, 0.4);
+        }
+
+        .tab-label {
+            font-size: 0.75rem;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 400;
+            opacity: 0.8;
+            text-transform: none;
+            letter-spacing: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 130px;
+        }
+
+        .tab-btn.active .tab-label { opacity: 0.9; }
+
+        .tab-status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #ccc;
+            margin-left: 6px;
+            vertical-align: middle;
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .tab-status-dot.running {
+            background: #27ae60;
+            box-shadow: 0 0 6px rgba(39, 174, 96, 0.7);
+        }
+
+        /* ── Control panels ───────────────────────────────────────── */
         .control-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -140,6 +251,8 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
+            border-top: 3px solid var(--t-accent);
+            transition: border-top-color 0.4s ease;
         }
 
         .control-panel h3 {
@@ -147,15 +260,14 @@
             font-weight: 600;
             letter-spacing: 1px;
             text-transform: uppercase;
-            color: #1d4290;
+            color: var(--t-primary);
             margin-bottom: 20px;
-            border-bottom: 2px solid #6ab3e7;
+            border-bottom: 2px solid var(--t-accent);
             padding-bottom: 10px;
+            transition: color 0.4s ease, border-color 0.4s ease;
         }
 
-        .form-group {
-            margin-bottom: 15px;
-        }
+        .form-group { margin-bottom: 15px; }
 
         label {
             display: block;
@@ -177,17 +289,17 @@
             border-radius: 8px;
             color: #2d2d2d;
             font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
-        input:focus,
-        textarea:focus,
-        select:focus {
+        input:focus, textarea:focus, select:focus {
             outline: none;
-            border-color: #6ab3e7;
-            box-shadow: 0 0 10px rgba(106, 179, 231, 0.2);
+            border-color: var(--t-accent);
+            box-shadow: 0 0 10px var(--t-accent-alpha);
             background: rgba(255, 255, 255, 1);
         }
 
+        /* ── Buttons ──────────────────────────────────────────────── */
         .btn {
             font-family: 'Oswald', sans-serif;
             padding: 12px 24px;
@@ -203,15 +315,17 @@
             width: 100%;
         }
 
+        /* Primary button adopts the active timer theme */
         .btn-primary {
-            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
+            background: linear-gradient(135deg, var(--t-primary) 0%, var(--t-secondary) 100%);
             color: white;
+            transition: background 0.4s ease, transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, #2557b8 0%, #1d4290 100%);
+            background: linear-gradient(135deg, var(--t-secondary) 0%, var(--t-primary) 100%);
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(29, 66, 144, 0.4);
+            box-shadow: 0 4px 15px var(--t-glow);
         }
 
         .btn-danger {
@@ -245,43 +359,33 @@
             transform: translateY(-2px);
         }
 
-        .timer-controls {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
+        .timer-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .timer-controls .btn { flex: 1; min-width: 120px; }
 
-        .timer-controls .btn {
-            flex: 1;
-            min-width: 120px;
-        }
-
+        /* ── Status display ───────────────────────────────────────── */
         .status-display {
-            background: rgba(106, 179, 231, 0.1);
+            background: var(--t-accent-alpha);
             padding: 15px;
             border-radius: 8px;
             margin-top: 15px;
-            border: 1px solid #6ab3e7;
+            border: 1px solid var(--t-accent);
+            transition: background 0.4s ease, border-color 0.4s ease;
         }
 
         .status-item {
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
-            border-bottom: 1px solid rgba(106, 179, 231, 0.3);
+            border-bottom: 1px solid var(--t-accent-alpha);
         }
 
-        .status-item:last-child {
-            border-bottom: none;
-        }
-
-        .status-label {
-            color: #5a5a5a;
-        }
+        .status-item:last-child { border-bottom: none; }
+        .status-label { color: #5a5a5a; }
 
         .status-value {
-            color: #1d4290;
+            color: var(--t-primary);
             font-weight: bold;
+            transition: color 0.4s ease;
         }
 
         .message-preview {
@@ -295,15 +399,10 @@
             font-size: 1.2rem;
         }
 
-        .color-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
+        .color-buttons { display: flex; gap: 10px; margin-top: 10px; }
 
         .color-btn {
-            flex: 1;
-            padding: 8px;
+            flex: 1; padding: 8px;
             border: 2px solid;
             background: transparent;
             cursor: pointer;
@@ -312,101 +411,72 @@
             transition: all 0.3s ease;
         }
 
-        .color-btn.black {
-            border-color: #2d2d2d;
-            color: #2d2d2d;
-        }
+        .color-btn.black { border-color: #2d2d2d; color: #2d2d2d; }
+        .color-btn.black:hover { background: rgba(45, 45, 45, 0.2); }
+        .color-btn.red { border-color: #e74c3c; color: #e74c3c; }
+        .color-btn.red:hover { background: rgba(231, 76, 60, 0.2); }
+        .color-btn.green { border-color: #2ecc71; color: #2ecc71; }
+        .color-btn.green:hover { background: rgba(46, 204, 113, 0.2); }
 
-        .color-btn.black:hover {
-            background: rgba(45, 45, 45, 0.2);
-        }
-
-        .color-btn.red {
-            border-color: #e74c3c;
-            color: #e74c3c;
-        }
-
-        .color-btn.red:hover {
-            background: rgba(231, 76, 60, 0.2);
-        }
-
-        .color-btn.green {
-            border-color: #2ecc71;
-            color: #2ecc71;
-        }
-
-        .color-btn.green:hover {
-            background: rgba(46, 204, 113, 0.2);
-        }
-
-        .error-message {
-            color: #e74c3c;
-            margin-top: 10px;
-            font-size: 0.9rem;
-        }
+        .error-message { color: #e74c3c; margin-top: 10px; font-size: 0.9rem; }
 
         .back-link {
-            color: #1d4290;
+            color: var(--t-primary);
             text-decoration: none;
             margin-top: 20px;
             display: inline-block;
+            transition: color 0.4s ease;
         }
 
-        .back-link:hover {
-            color: #6ab3e7;
-            text-decoration: underline;
-        }
+        .back-link:hover { color: var(--t-accent); text-decoration: underline; }
 
+        /* ── Toggle switch ────────────────────────────────────────── */
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 60px;
-            height: 34px;
+            width: 60px; height: 34px;
         }
 
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
 
         .slider {
             position: absolute;
             cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #1d4290;
-            transition: .4s;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--t-primary);
+            transition: background-color 0.4s ease, transform 0.4s ease;
             border-radius: 34px;
         }
 
         .slider:before {
             position: absolute;
             content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
+            height: 26px; width: 26px;
+            left: 4px; bottom: 4px;
             background-color: white;
             transition: .4s;
             border-radius: 50%;
         }
 
-        input:checked + .slider {
-            background-color: #862633;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
+        input:checked + .slider { background-color: #862633; }
+        input:checked + .slider:before { transform: translateX(26px); }
 
         .toggle-control {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-top: 15px;
+        }
+
+        /* ── Panel tab-switch animation ───────────────────────────── */
+        @keyframes panelReveal {
+            0%   { opacity: 0.3; transform: translateY(8px) scale(0.982); }
+            65%  { opacity: 1;   transform: translateY(-1px) scale(1.003); }
+            100% { opacity: 1;   transform: translateY(0)   scale(1); }
+        }
+
+        .control-panel.refreshing {
+            animation: panelReveal 0.32s ease-out forwards;
         }
     </style>
 </head>
@@ -424,15 +494,30 @@
         </div>
     </div>
 
-    <div class="controller-screen" id="controllerScreen">
+    <div class="controller-screen" id="controllerScreen" data-theme="timer-1">
         <div class="header">
             <div>
                 <h1>Timer Controller</h1>
                 <a href="/" class="back-link">Back to Home</a>
             </div>
-            <div class="logo-area" id="logoArea">
+            <div class="logo-area">
                 <img src="/logo.png" alt="Belmont Simulation" style="max-width: 100%; max-height: 100%; object-fit: contain;">
             </div>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tab-timer-1" onclick="switchTab('timer-1')">
+                Timer 1<span class="tab-status-dot" id="dot-timer-1"></span>
+                <span class="tab-label" id="tablabel-timer-1">Timer 1</span>
+            </button>
+            <button class="tab-btn" id="tab-timer-2" onclick="switchTab('timer-2')">
+                Timer 2<span class="tab-status-dot" id="dot-timer-2"></span>
+                <span class="tab-label" id="tablabel-timer-2">Timer 2</span>
+            </button>
+            <button class="tab-btn" id="tab-timer-3" onclick="switchTab('timer-3')">
+                Timer 3<span class="tab-status-dot" id="dot-timer-3"></span>
+                <span class="tab-label" id="tablabel-timer-3">Timer 3</span>
+            </button>
         </div>
 
         <div class="control-grid">
@@ -440,7 +525,7 @@
                 <h3>Timer Settings</h3>
                 <div class="form-group">
                     <label for="timerName">Timer Name</label>
-                    <input type="text" id="timerName" placeholder="Enter timer name" value="Simulation Timer">
+                    <input type="text" id="timerName" placeholder="Enter timer name">
                 </div>
                 <button class="btn btn-primary" onclick="updateTimerName()">Update Name</button>
 
@@ -504,9 +589,7 @@
                 </div>
                 <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearMessage()">Clear Message</button>
 
-                <div class="message-preview" id="messagePreview">
-                    No message
-                </div>
+                <div class="message-preview" id="messagePreview">No message</div>
             </div>
         </div>
     </div>
@@ -514,11 +597,16 @@
     <script>
         const socket = io();
         let isAuthenticated = false;
+        let activeTimerId = 'timer-1';
 
-        // Authentication
+        const timerStates = {
+            'timer-1': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 1', message: { text: '', color: 'black' }, isBlackedOut: false },
+            'timer-2': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 2', message: { text: '', color: 'black' }, isBlackedOut: false },
+            'timer-3': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 3', message: { text: '', color: 'black' }, isBlackedOut: false }
+        };
+
         function authenticate() {
-            const password = document.getElementById('password').value;
-            socket.emit('authenticate', password);
+            socket.emit('authenticate', document.getElementById('password').value);
         }
 
         socket.on('authResult', (result) => {
@@ -526,74 +614,64 @@
                 isAuthenticated = true;
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('controllerScreen').style.display = 'block';
+                socket.emit('joinAll');
             } else {
-                const errorDiv = document.getElementById('authError');
-                errorDiv.textContent = 'Invalid password. Please try again.';
-                errorDiv.style.display = 'block';
+                const err = document.getElementById('authError');
+                err.textContent = 'Invalid password. Please try again.';
+                err.style.display = 'block';
             }
         });
 
-        // Listen for Enter key on password field
-        document.getElementById('password')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                authenticate();
-            }
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') authenticate();
         });
 
-        // Timer functions
-        function setTimer() {
-            const hours = parseInt(document.getElementById('hours').value) || 0;
-            const minutes = parseInt(document.getElementById('minutes').value) || 0;
-            const seconds = parseInt(document.getElementById('seconds').value) || 0;
-            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-            socket.emit('setTimer', totalSeconds);
+        socket.on('allTimerStates', (states) => {
+            Object.keys(states).forEach(id => { timerStates[id] = states[id]; });
+            updateTabIndicators();
+            if (isAuthenticated) renderActiveTab();
+        });
+
+        socket.on('timerState', ({ timerId, state }) => {
+            timerStates[timerId] = state;
+            updateTabIndicator(timerId);
+            if (timerId === activeTimerId && isAuthenticated) renderActiveTab();
+        });
+
+        function switchTab(timerId) {
+            activeTimerId = timerId;
+
+            // Update active tab button
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + timerId).classList.add('active');
+
+            // Shift the whole controller color theme
+            document.getElementById('controllerScreen').setAttribute('data-theme', timerId);
+
+            // Staggered panel reveal animation
+            document.querySelectorAll('.control-panel').forEach((panel, i) => {
+                panel.classList.remove('refreshing');
+                void panel.offsetWidth; // force reflow to restart animation
+                panel.style.animationDelay = `${i * 55}ms`;
+                panel.classList.add('refreshing');
+            });
+
+            renderActiveTab();
         }
 
-        function startTimer() {
-            socket.emit('startTimer');
-        }
-
-        function pauseTimer() {
-            socket.emit('pauseTimer');
-        }
-
-        function resetTimer() {
-            socket.emit('resetTimer');
-        }
-
-        function updateTimerName() {
-            const name = document.getElementById('timerName').value;
-            socket.emit('updateTimerName', name);
-        }
-
-        function sendMessage(color) {
-            const text = document.getElementById('messageText').value;
-            if (text.trim()) {
-                socket.emit('sendMessage', { text, color });
-            }
-        }
-
-        function clearMessage() {
-            document.getElementById('messageText').value = '';
-            socket.emit('clearMessage');
-        }
-
-        function toggleBlackout() {
-            const isBlackedOut = document.getElementById('blackoutToggle').checked;
-            socket.emit('toggleBlackout', isBlackedOut);
-        }
-
-        // Update UI based on timer state
-        socket.on('timerState', (state) => {
-            if (!isAuthenticated) return;
+        function renderActiveTab() {
+            const state = timerStates[activeTimerId];
+            if (!state) return;
 
             document.getElementById('timerStatus').textContent = state.isRunning ? 'Running' : 'Stopped';
             document.getElementById('timeRemaining').textContent = formatTime(state.remainingSeconds);
             document.getElementById('totalTime').textContent = formatTime(state.totalSeconds);
-            document.getElementById('timerName').value = state.timerName;
             document.getElementById('blackoutToggle').checked = state.isBlackedOut;
 
-            // Update message preview
+            if (document.activeElement !== document.getElementById('timerName')) {
+                document.getElementById('timerName').value = state.timerName;
+            }
+
             const preview = document.getElementById('messagePreview');
             if (state.message.text) {
                 preview.textContent = state.message.text;
@@ -602,7 +680,48 @@
                 preview.textContent = 'No message';
                 preview.style.color = '#999999';
             }
-        });
+        }
+
+        function updateTabIndicator(timerId) {
+            const state = timerStates[timerId];
+            const dot = document.getElementById('dot-' + timerId);
+            const label = document.getElementById('tablabel-' + timerId);
+            if (dot) dot.className = 'tab-status-dot' + (state.isRunning ? ' running' : '');
+            if (label) label.textContent = state.timerName;
+        }
+
+        function updateTabIndicators() {
+            ['timer-1', 'timer-2', 'timer-3'].forEach(updateTabIndicator);
+        }
+
+        function setTimer() {
+            const h = parseInt(document.getElementById('hours').value) || 0;
+            const m = parseInt(document.getElementById('minutes').value) || 0;
+            const s = parseInt(document.getElementById('seconds').value) || 0;
+            socket.emit('setTimer', { timerId: activeTimerId, seconds: h * 3600 + m * 60 + s });
+        }
+
+        function startTimer()  { socket.emit('startTimer',  { timerId: activeTimerId }); }
+        function pauseTimer()  { socket.emit('pauseTimer',  { timerId: activeTimerId }); }
+        function resetTimer()  { socket.emit('resetTimer',  { timerId: activeTimerId }); }
+
+        function updateTimerName() {
+            socket.emit('updateTimerName', { timerId: activeTimerId, name: document.getElementById('timerName').value });
+        }
+
+        function sendMessage(color) {
+            const text = document.getElementById('messageText').value;
+            if (text.trim()) socket.emit('sendMessage', { timerId: activeTimerId, text, color });
+        }
+
+        function clearMessage() {
+            document.getElementById('messageText').value = '';
+            socket.emit('clearMessage', { timerId: activeTimerId });
+        }
+
+        function toggleBlackout() {
+            socket.emit('toggleBlackout', { timerId: activeTimerId, isBlackedOut: document.getElementById('blackoutToggle').checked });
+        }
 
         function formatTime(seconds) {
             const h = Math.floor(seconds / 3600);

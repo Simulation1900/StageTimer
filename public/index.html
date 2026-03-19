@@ -16,12 +16,9 @@
 
         body {
             font-family: 'Montserrat', sans-serif;
-            background:
-                linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,240,245,0.95) 100%),
-                repeating-linear-gradient(45deg, #f8f8f8 0px, #f8f8f8 10px, #ffffff 10px, #ffffff 20px),
-                repeating-linear-gradient(-45deg, #f0f0f5 0px, #f0f0f5 10px, #fafafa 10px, #fafafa 20px);
-            background-size: 100% 100%, 40px 40px, 40px 40px;
-            position: relative;
+            background: linear-gradient(-45deg, #b8ccee, #e8b0bc, #a8c8ee, #d4a8d4, #8eb8e8, #e8a8b8);
+            background-size: 400% 400%;
+            animation: gradientFlow 12s ease infinite;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -29,33 +26,10 @@
             color: #2d2d2d;
         }
 
-        body::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background:
-                linear-gradient(60deg, transparent 30%, rgba(106, 179, 231, 0.03) 30%, rgba(106, 179, 231, 0.03) 32%, transparent 32%, transparent 70%, rgba(29, 66, 144, 0.05) 70%, rgba(29, 66, 144, 0.05) 72%, transparent 72%),
-                linear-gradient(120deg, transparent 20%, rgba(134, 38, 51, 0.03) 20%, rgba(134, 38, 51, 0.03) 22%, transparent 22%, transparent 60%, rgba(106, 179, 231, 0.04) 60%, rgba(106, 179, 231, 0.04) 62%, transparent 62%);
-            background-size: 120px 120px, 80px 80px;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        body::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background:
-                radial-gradient(ellipse at 20% 30%, rgba(106, 179, 231, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 70%, rgba(29, 66, 144, 0.06) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
+        @keyframes gradientFlow {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .container {
@@ -139,6 +113,26 @@
             justify-content: center;
             align-items: center;
         }
+
+        .director-link-container {
+            margin-top: 18px;
+        }
+
+        .director-link {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #7a7a9a;
+            text-decoration: none;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid transparent;
+            transition: color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .director-link:hover {
+            color: #4a1570;
+            border-bottom-color: #4a1570;
+        }
     </style>
 </head>
 <body>
@@ -148,6 +142,9 @@
         <div class="button-container">
             <a href="/controller" class="btn btn-controller">Controller</a>
             <a href="/endpoint" class="btn btn-endpoint">Endpoint Display</a>
+        </div>
+        <div class="director-link-container">
+            <a href="/director" class="director-link">Director View</a>
         </div>
         <div class="logo-placeholder">
             <img src="/logo.png" alt="Belmont Simulation" style="max-width: 200px; max-height: 80px; object-fit: contain;">

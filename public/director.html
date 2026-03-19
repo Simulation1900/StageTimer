@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Director View</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,240,245,0.95) 100%),
+                repeating-linear-gradient(45deg, #f8f8f8 0px, #f8f8f8 10px, #ffffff 10px, #ffffff 20px),
+                repeating-linear-gradient(-45deg, #f0f0f5 0px, #f0f0f5 10px, #fafafa 10px, #fafafa 20px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+            position: relative;
+            min-height: 100vh;
+            color: #2d2d2d;
+            padding: 20px;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                linear-gradient(60deg, transparent 30%, rgba(106, 179, 231, 0.03) 30%, rgba(106, 179, 231, 0.03) 32%, transparent 32%, transparent 70%, rgba(29, 66, 144, 0.05) 70%, rgba(29, 66, 144, 0.05) 72%, transparent 72%),
+                linear-gradient(120deg, transparent 20%, rgba(134, 38, 51, 0.03) 20%, rgba(134, 38, 51, 0.03) 22%, transparent 22%, transparent 60%, rgba(106, 179, 231, 0.04) 60%, rgba(106, 179, 231, 0.04) 62%, transparent 62%);
+            background-size: 120px 120px, 80px 80px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(ellipse at 20% 30%, rgba(106, 179, 231, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(29, 66, 144, 0.06) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .page-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .header h1 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #1d4290;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo-area {
+            width: 100px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .back-link {
+            color: #1d4290;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .back-link:hover { color: #6ab3e7; text-decoration: underline; }
+
+        /* 3-column grid */
+        .timer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .timer-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Individual timer card */
+        .timer-card {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .timer-card.running {
+            border-color: rgba(39, 174, 96, 0.4);
+            box-shadow: 0 4px 20px rgba(39, 174, 96, 0.15);
+        }
+
+        .timer-card.critical {
+            border-color: rgba(134, 38, 51, 0.4);
+            box-shadow: 0 4px 20px rgba(134, 38, 51, 0.2);
+        }
+
+        .card-header {
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-timer-name {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .status-badge {
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .status-badge.running {
+            background: rgba(39, 174, 96, 0.8);
+            box-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+        }
+
+        .status-badge.stopped {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .card-time {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            text-align: center;
+            transition: color 0.5s ease;
+        }
+
+        .card-time.normal { color: #1d4290; }
+        .card-time.warning { color: #f39c12; }
+        .card-time.critical {
+            color: #862633;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+
+        .card-progress-container {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(29, 66, 144, 0.2);
+        }
+
+        .card-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #1d4290 0%, #6ab3e7 100%);
+            transition: width 0.3s ease, background 0.5s ease;
+            border-radius: 6px;
+        }
+
+        .card-progress-bar.warning {
+            background: linear-gradient(90deg, #f39c12 0%, #f1c40f 100%);
+        }
+
+        .card-progress-bar.critical {
+            background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
+        }
+
+        .card-message {
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.6);
+            width: 100%;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            word-break: break-word;
+        }
+
+        /* Blackout overlay per card */
+        .card-blackout {
+            position: absolute;
+            inset: 0;
+            background: #000;
+            border-radius: 16px;
+            z-index: 10;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-blackout.active {
+            display: flex;
+        }
+
+        .card-blackout-label {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="header">
+            <div>
+                <h1>Director View</h1>
+                <a href="/" class="back-link">Back to Home</a>
+            </div>
+            <div class="header-right">
+                <div class="logo-area">
+                    <img src="/logo.png" alt="Belmont Simulation" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
+            </div>
+        </div>
+
+        <div class="timer-grid">
+            <!-- Timer 1 -->
+            <div class="timer-card" id="card-timer-1">
+                <div class="card-blackout" id="blackout-timer-1">
+                    <span class="card-blackout-label">Blacked Out</span>
+                </div>
+                <div class="card-header">
+                    <span class="card-timer-name" id="name-timer-1">Timer 1</span>
+                    <span class="status-badge stopped" id="badge-timer-1">Stopped</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-time normal" id="time-timer-1">00:00:00</div>
+                    <div class="card-progress-container">
+                        <div class="card-progress-bar" id="progress-timer-1" style="width: 100%;"></div>
+                    </div>
+                    <div class="card-message" id="msg-timer-1"></div>
+                </div>
+            </div>
+
+            <!-- Timer 2 -->
+            <div class="timer-card" id="card-timer-2">
+                <div class="card-blackout" id="blackout-timer-2">
+                    <span class="card-blackout-label">Blacked Out</span>
+                </div>
+                <div class="card-header">
+                    <span class="card-timer-name" id="name-timer-2">Timer 2</span>
+                    <span class="status-badge stopped" id="badge-timer-2">Stopped</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-time normal" id="time-timer-2">00:00:00</div>
+                    <div class="card-progress-container">
+                        <div class="card-progress-bar" id="progress-timer-2" style="width: 100%;"></div>
+                    </div>
+                    <div class="card-message" id="msg-timer-2"></div>
+                </div>
+            </div>
+
+            <!-- Timer 3 -->
+            <div class="timer-card" id="card-timer-3">
+                <div class="card-blackout" id="blackout-timer-3">
+                    <span class="card-blackout-label">Blacked Out</span>
+                </div>
+                <div class="card-header">
+                    <span class="card-timer-name" id="name-timer-3">Timer 3</span>
+                    <span class="status-badge stopped" id="badge-timer-3">Stopped</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-time normal" id="time-timer-3">00:00:00</div>
+                    <div class="card-progress-container">
+                        <div class="card-progress-bar" id="progress-timer-3" style="width: 100%;"></div>
+                    </div>
+                    <div class="card-message" id="msg-timer-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        const timerStates = {
+            'timer-1': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 1', message: { text: '', color: 'black' }, isBlackedOut: false },
+            'timer-2': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 2', message: { text: '', color: 'black' }, isBlackedOut: false },
+            'timer-3': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 3', message: { text: '', color: 'black' }, isBlackedOut: false }
+        };
+
+        socket.on('allTimerStates', (states) => {
+            Object.keys(states).forEach(id => { timerStates[id] = states[id]; });
+            socket.emit('joinAll');
+            ['timer-1', 'timer-2', 'timer-3'].forEach(renderCard);
+        });
+
+        socket.on('timerState', ({ timerId, state }) => {
+            timerStates[timerId] = state;
+            renderCard(timerId);
+        });
+
+        function renderCard(timerId) {
+            const state = timerStates[timerId];
+            const card = document.getElementById('card-' + timerId);
+
+            // Name & status badge
+            document.getElementById('name-' + timerId).textContent = state.timerName;
+            const badge = document.getElementById('badge-' + timerId);
+            badge.textContent = state.isRunning ? 'Running' : 'Stopped';
+            badge.className = 'status-badge ' + (state.isRunning ? 'running' : 'stopped');
+
+            // Time display
+            const timeEl = document.getElementById('time-' + timerId);
+            timeEl.textContent = formatTime(state.remainingSeconds);
+
+            const pct = state.totalSeconds > 0 ? (state.remainingSeconds / state.totalSeconds) * 100 : 100;
+
+            timeEl.classList.remove('normal', 'warning', 'critical');
+            if (pct <= 5) timeEl.classList.add('critical');
+            else if (pct <= 20) timeEl.classList.add('warning');
+            else timeEl.classList.add('normal');
+
+            // Card border state
+            card.classList.remove('running', 'critical');
+            if (pct <= 5 && state.isRunning) card.classList.add('critical');
+            else if (state.isRunning) card.classList.add('running');
+
+            // Progress bar
+            const bar = document.getElementById('progress-' + timerId);
+            bar.style.width = pct + '%';
+            bar.classList.remove('warning', 'critical');
+            if (pct <= 5) bar.classList.add('critical');
+            else if (pct <= 20) bar.classList.add('warning');
+
+            // Message
+            const msgEl = document.getElementById('msg-' + timerId);
+            if (state.message.text) {
+                msgEl.textContent = state.message.text;
+                msgEl.style.color = state.message.color;
+            } else {
+                msgEl.textContent = '';
+                msgEl.style.color = '';
+            }
+
+            // Blackout overlay on card
+            const blackout = document.getElementById('blackout-' + timerId);
+            blackout.classList.toggle('active', state.isBlackedOut);
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+    </script>
+</body>
+</html>
