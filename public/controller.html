@@ -6,554 +6,378 @@
     <title>Timer Controller</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/theme.css">
+    <script>
+        (function () {
+            try {
+                var forced = new URLSearchParams(location.search).get('theme');
+                var saved = localStorage.getItem('timer.theme');
+                var t = (forced === 'dark' || forced === 'light') ? forced
+                      : (saved === 'dark' || saved === 'light') ? saved
+                      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {}
+        })();
+    </script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        body { padding: 22px; }
+
+        /* Each timer keeps a hue of its own so you always know which one
+           you are holding — muted to stay inside the same quiet palette. */
+        [data-timer="timer-2"] {
+            --accent: #9a7480; --accent-strong: #7d5b66; --accent-wash: rgba(154, 116, 128, 0.10);
+        }
+        [data-timer="timer-3"] {
+            --accent: #6f8f88; --accent-strong: #54726c; --accent-wash: rgba(111, 143, 136, 0.10);
+        }
+        :root[data-theme="dark"] [data-timer="timer-2"] {
+            --accent: #bd949e; --accent-strong: #d4b0b8; --accent-wash: rgba(189, 148, 158, 0.10);
+        }
+        :root[data-theme="dark"] [data-timer="timer-3"] {
+            --accent: #8fb0a8; --accent-strong: #a9c8c1; --accent-wash: rgba(143, 176, 168, 0.10);
         }
 
-        /* ── Color themes — one per timer ─────────────────────────── */
-        :root {
-            --t-primary:      #1d4290;
-            --t-secondary:    #2557b8;
-            --t-accent:       #6ab3e7;
-            --t-accent-alpha: rgba(106, 179, 231, 0.12);
-            --t-glow:         rgba(29, 66, 144, 0.35);
-        }
-
-        [data-theme="timer-2"] {
-            --t-primary:      #862633;
-            --t-secondary:    #a83545;
-            --t-accent:       #d4849a;
-            --t-accent-alpha: rgba(212, 132, 154, 0.12);
-            --t-glow:         rgba(134, 38, 51, 0.35);
-        }
-
-        [data-theme="timer-3"] {
-            --t-primary:      #1a7a6e;
-            --t-secondary:    #22a090;
-            --t-accent:       #5ecfc3;
-            --t-accent-alpha: rgba(94, 207, 195, 0.12);
-            --t-glow:         rgba(26, 122, 110, 0.35);
-        }
-
-        body {
-            font-family: 'Montserrat', sans-serif;
-            background:
-                linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,240,245,0.95) 100%),
-                repeating-linear-gradient(45deg, #f8f8f8 0px, #f8f8f8 10px, #ffffff 10px, #ffffff 20px),
-                repeating-linear-gradient(-45deg, #f0f0f5 0px, #f0f0f5 10px, #fafafa 10px, #fafafa 20px);
-            background-size: 100% 100%, 40px 40px, 40px 40px;
-            position: relative;
-            min-height: 100vh;
-            color: #2d2d2d;
-            padding: 20px;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
-            background:
-                linear-gradient(60deg, transparent 30%, rgba(106, 179, 231, 0.03) 30%, rgba(106, 179, 231, 0.03) 32%, transparent 32%, transparent 70%, rgba(29, 66, 144, 0.05) 70%, rgba(29, 66, 144, 0.05) 72%, transparent 72%),
-                linear-gradient(120deg, transparent 20%, rgba(134, 38, 51, 0.03) 20%, rgba(134, 38, 51, 0.03) 22%, transparent 22%, transparent 60%, rgba(106, 179, 231, 0.04) 60%, rgba(106, 179, 231, 0.04) 62%, transparent 62%);
-            background-size: 120px 120px, 80px 80px;
-            z-index: 0; pointer-events: none;
-        }
-
-        body::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background:
-                radial-gradient(ellipse at 20% 30%, rgba(106, 179, 231, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 70%, rgba(29, 66, 144, 0.06) 0%, transparent 50%);
-            z-index: 0; pointer-events: none;
-        }
-
-        /* ── Auth ─────────────────────────────────────────────────── */
+        /* ── Auth ────────────────────────────────────────────── */
         .auth-screen {
-            position: relative; z-index: 1;
             display: flex;
-            justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            justify-content: center;
+            min-height: calc(100vh - 44px);
         }
 
         .auth-container {
-            background: rgba(255, 255, 255, 0.7);
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 360px;
+            padding: 36px;
             text-align: center;
-            max-width: 400px; width: 100%;
-            border: 1px solid rgba(255, 255, 255, 0.8);
         }
 
-        .auth-container h2 {
-            font-family: 'Oswald', sans-serif;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #1d4290;
-            margin-bottom: 30px;
-        }
+        .auth-container h2 { margin-bottom: 26px; }
+        .auth-container .btn { width: 100%; margin-top: 16px; }
 
-        /* ── Controller screen ────────────────────────────────────── */
-        .controller-screen {
-            position: relative; z-index: 1;
-            display: none;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+        /* ── Layout ──────────────────────────────────────────── */
+        .controller-screen { display: none; max-width: 1360px; margin: 0 auto; }
 
         .header {
-            background: rgba(255, 255, 255, 0.7);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
+            gap: 18px;
+            padding: 16px 22px;
+            margin-bottom: 14px;
         }
 
-        .header h1 {
-            font-family: 'Oswald', sans-serif;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--t-primary);
-            transition: color 0.4s ease;
-        }
+        .header-group { display: flex; align-items: center; gap: 10px; }
+        .logo-area { width: 92px; height: 42px; opacity: 0.55; }
+        .logo-area img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        .logo-area {
-            width: 100px; height: 60px;
-            border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            padding: 5px;
-        }
-
-        /* ── Tab bar ──────────────────────────────────────────────── */
-        .tab-bar {
-            display: flex;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.7);
-            padding: 8px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-        }
+        .tab-bar { display: flex; gap: 6px; padding: 7px; margin-bottom: 18px; }
 
         .tab-btn {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1rem;
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            padding: 10px 0;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            cursor: pointer;
-            background: transparent;
-            color: #5a5a5a;
-            transition: all 0.25s ease;
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
+            padding: 11px 8px;
+            font-family: var(--font);
+            font-size: 0.72rem;
+            font-weight: 400;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            border-radius: 9px;
+            color: var(--text-faint);
+            cursor: pointer;
+            transition: color 0.25s ease, background 0.25s ease;
         }
 
-        /* Inactive tabs show a subtle colored underline per timer */
-        #tab-timer-1 { border-bottom-color: rgba(29, 66, 144, 0.25); }
-        #tab-timer-2 { border-bottom-color: rgba(134, 38, 51, 0.25); }
-        #tab-timer-3 { border-bottom-color: rgba(26, 122, 110, 0.25); }
+        .tab-btn:hover { color: var(--text-dim); }
+        .tab-btn.active { background: var(--accent-wash); color: var(--text); }
 
-        .tab-btn:hover {
-            background: var(--t-accent-alpha);
-            color: var(--t-primary);
-        }
-
-        .tab-btn.active {
-            background: linear-gradient(135deg, var(--t-primary) 0%, var(--t-secondary) 100%);
-            color: white;
-            border-color: transparent;
-            box-shadow: 0 4px 14px var(--t-glow);
-        }
-
-        /* Each timer's active tab keeps its own fixed color regardless of theme variable */
-        #tab-timer-1.active {
-            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
-            box-shadow: 0 4px 14px rgba(29, 66, 144, 0.4);
-        }
-        #tab-timer-2.active {
-            background: linear-gradient(135deg, #862633 0%, #a83545 100%);
-            box-shadow: 0 4px 14px rgba(134, 38, 51, 0.4);
-        }
-        #tab-timer-3.active {
-            background: linear-gradient(135deg, #1a7a6e 0%, #22a090 100%);
-            box-shadow: 0 4px 14px rgba(26, 122, 110, 0.4);
-        }
+        #tab-timer-1.active { border-bottom-color: #6e7d94; }
+        #tab-timer-2.active { border-bottom-color: #9a7480; }
+        #tab-timer-3.active { border-bottom-color: #6f8f88; }
 
         .tab-label {
-            font-size: 0.75rem;
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 400;
-            opacity: 0.8;
-            text-transform: none;
+            font-size: 0.64rem;
             letter-spacing: 0;
+            text-transform: none;
+            color: var(--text-faint);
+            max-width: 150px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 130px;
         }
 
-        .tab-btn.active .tab-label { opacity: 0.9; }
-
-        .tab-status-dot {
+        .tab-dot {
             display: inline-block;
-            width: 8px; height: 8px;
+            width: 6px; height: 6px;
             border-radius: 50%;
-            background: #ccc;
+            background: var(--border-strong);
             margin-left: 6px;
             vertical-align: middle;
-            transition: background 0.3s ease, box-shadow 0.3s ease;
+            transition: background 0.3s ease;
         }
 
-        .tab-status-dot.running {
-            background: #27ae60;
-            box-shadow: 0 0 6px rgba(39, 174, 96, 0.7);
-        }
+        .tab-dot.running { background: var(--ok); }
 
-        /* ── Control panels ───────────────────────────────────────── */
         .control-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 16px;
         }
 
-        .control-panel {
-            background: rgba(255, 255, 255, 0.7);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            border-top: 3px solid var(--t-accent);
-            transition: border-top-color 0.4s ease;
-        }
+        .control-panel { padding: 24px; }
 
         .control-panel h3 {
-            font-family: 'Oswald', sans-serif;
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: var(--t-primary);
             margin-bottom: 20px;
-            border-bottom: 2px solid var(--t-accent);
-            padding-bottom: 10px;
-            transition: color 0.4s ease, border-color 0.4s ease;
+            padding-bottom: 11px;
+            border-bottom: 1px solid var(--border);
+            color: var(--accent-strong);
         }
 
-        .form-group { margin-bottom: 15px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group .btn { width: 100%; }
 
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #5a5a5a;
-            font-size: 0.9rem;
-            font-weight: 500;
+        /* ── Duration inputs ─────────────────────────────────── */
+        .duration-row { display: flex; gap: 10px; }
+        .duration-row .form-group { flex: 1; margin-bottom: 0; }
+
+        .duration-row input {
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            font-size: 1.1rem;
         }
 
-        input[type="text"],
-        input[type="number"],
-        input[type="password"],
-        textarea,
-        select {
-            width: 100%;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid #d0d0d0;
-            border-radius: 8px;
-            color: #2d2d2d;
-            font-size: 1rem;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        .preset-row { display: flex; gap: 6px; margin: 12px 0 14px; }
+        .preset-row .btn { flex: 1; padding: 8px 0; letter-spacing: 1px; }
+
+        /* ── Transport ───────────────────────────────────────── */
+        .transport { display: flex; gap: 8px; }
+        .transport .btn { flex: 1; }
+
+        /* Nudging the clock mid-run, without stopping it. */
+        .adjust-block { margin-top: 18px; }
+
+        .adjust-row { display: flex; gap: 5px; }
+        .adjust-row .btn {
+            flex: 1;
+            padding: 9px 0;
+            font-size: 0.66rem;
+            letter-spacing: 0.5px;
+            font-variant-numeric: tabular-nums;
         }
 
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: var(--t-accent);
-            box-shadow: 0 0 10px var(--t-accent-alpha);
-            background: rgba(255, 255, 255, 1);
-        }
-
-        /* ── Buttons ──────────────────────────────────────────────── */
-        .btn {
-            font-family: 'Oswald', sans-serif;
-            padding: 12px 24px;
-            font-size: 1rem;
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 5px;
-            width: 100%;
-        }
-
-        /* Primary button adopts the active timer theme */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--t-primary) 0%, var(--t-secondary) 100%);
-            color: white;
-            transition: background 0.4s ease, transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--t-secondary) 0%, var(--t-primary) 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px var(--t-glow);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #862633 0%, #a83545 100%);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #a83545 0%, #862633 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(134, 38, 51, 0.4);
-        }
-
-        .btn-warning {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-            color: white;
-        }
-
-        .btn-warning:hover {
-            background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
-            transform: translateY(-2px);
-        }
-
-        .timer-controls { display: flex; gap: 10px; flex-wrap: wrap; }
-        .timer-controls .btn { flex: 1; min-width: 120px; }
-
-        /* ── Status display ───────────────────────────────────────── */
+        /* ── Status ──────────────────────────────────────────── */
         .status-display {
-            background: var(--t-accent-alpha);
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border: 1px solid var(--t-accent);
-            transition: background 0.4s ease, border-color 0.4s ease;
+            margin-top: 18px;
+            padding: 14px 16px;
+            background: var(--accent-wash);
+            border: 1px solid var(--border);
+            border-radius: 10px;
         }
 
         .status-item {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--t-accent-alpha);
+            align-items: baseline;
+            padding: 7px 0;
+            border-bottom: 1px solid var(--border);
         }
 
         .status-item:last-child { border-bottom: none; }
-        .status-label { color: #5a5a5a; }
+
+        .status-label {
+            font-size: 0.66rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-faint);
+        }
 
         .status-value {
-            color: var(--t-primary);
-            font-weight: bold;
-            transition: color 0.4s ease;
+            font-variant-numeric: tabular-nums;
+            font-weight: 300;
+            color: var(--text);
         }
 
-        .message-preview {
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            background: rgba(255, 255, 255, 0.8);
-            border: 2px solid #d0d0d0;
-            min-height: 60px;
-            text-align: center;
-            font-size: 1.2rem;
-        }
-
-        .color-buttons { display: flex; gap: 10px; margin-top: 10px; }
-
-        .color-btn {
-            flex: 1; padding: 8px;
-            border: 2px solid;
-            background: transparent;
-            cursor: pointer;
-            border-radius: 6px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .color-btn.black { border-color: #2d2d2d; color: #2d2d2d; }
-        .color-btn.black:hover { background: rgba(45, 45, 45, 0.2); }
-        .color-btn.red { border-color: #e74c3c; color: #e74c3c; }
-        .color-btn.red:hover { background: rgba(231, 76, 60, 0.2); }
-        .color-btn.green { border-color: #2ecc71; color: #2ecc71; }
-        .color-btn.green:hover { background: rgba(46, 204, 113, 0.2); }
-
-        .error-message { color: #e74c3c; margin-top: 10px; font-size: 0.9rem; }
-
-        .back-link {
-            color: var(--t-primary);
-            text-decoration: none;
-            margin-top: 20px;
-            display: inline-block;
-            transition: color 0.4s ease;
-        }
-
-        .back-link:hover { color: var(--t-accent); text-decoration: underline; }
-
-        /* ── Toggle switch ────────────────────────────────────────── */
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 60px; height: 34px;
-        }
-
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: var(--t-primary);
-            transition: background-color 0.4s ease, transform 0.4s ease;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 26px; width: 26px;
-            left: 4px; bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider { background-color: #862633; }
-        input:checked + .slider:before { transform: translateX(26px); }
+        #timeRemaining { font-size: 1.6rem; font-weight: 200; letter-spacing: 2px; }
+        #timeRemaining.warning  { color: var(--warn); }
+        #timeRemaining.critical { color: var(--crit); }
 
         .toggle-control {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 15px;
+            margin-top: 18px;
         }
 
-        /* ── Panel tab-switch animation ───────────────────────────── */
-        @keyframes panelReveal {
-            0%   { opacity: 0.3; transform: translateY(8px) scale(0.982); }
-            65%  { opacity: 1;   transform: translateY(-1px) scale(1.003); }
-            100% { opacity: 1;   transform: translateY(0)   scale(1); }
+        .toggle-control label { margin-bottom: 0; }
+
+        .toggle-switch { position: relative; width: 46px; height: 25px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            cursor: pointer;
+            border-radius: 25px;
+            background: var(--border-strong);
+            transition: background 0.3s ease;
         }
 
-        .control-panel.refreshing {
-            animation: panelReveal 0.32s ease-out forwards;
+        .slider::before {
+            content: "";
+            position: absolute;
+            width: 19px; height: 19px;
+            left: 3px; bottom: 3px;
+            border-radius: 50%;
+            background: var(--surface-solid);
+            transition: transform 0.3s ease;
+        }
+
+        input:checked + .slider { background: var(--accent); }
+        input:checked + .slider::before { transform: translateX(21px); }
+
+        /* ── Messages ────────────────────────────────────────── */
+        textarea { resize: vertical; min-height: 78px; }
+
+        .color-buttons { display: flex; gap: 6px; margin-top: 10px; }
+        .color-buttons .btn { flex: 1; padding: 9px 0; }
+
+        .message-preview {
+            margin-top: 14px;
+            padding: 15px;
+            min-height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 300;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            word-break: break-word;
+        }
+
+        .error-message {
+            margin-top: 12px;
+            font-size: 0.78rem;
+            color: var(--crit);
+        }
+
+        .back-link { font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase; }
+
+        @media (max-width: 700px) {
+            body { padding: 12px; }
+            .header { flex-wrap: wrap; }
         }
     </style>
 </head>
 <body>
     <div class="auth-screen" id="authScreen">
-        <div class="auth-container">
+        <div class="auth-container panel">
             <h2>Controller Access</h2>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Enter controller password">
+                <input type="password" id="password" placeholder="Controller password">
             </div>
-            <button class="btn btn-primary" onclick="authenticate()">Login</button>
+            <button class="btn btn-primary" onclick="authenticate()">Enter</button>
             <div id="authError" class="error-message" style="display: none;"></div>
-            <a href="/" class="back-link">Back to Home</a>
+            <p style="margin-top: 22px;"><a href="/" class="back-link">Home</a></p>
         </div>
     </div>
 
-    <div class="controller-screen" id="controllerScreen" data-theme="timer-1">
-        <div class="header">
+    <div class="controller-screen" id="controllerScreen" data-timer="timer-1">
+        <div class="header panel">
             <div>
                 <h1>Timer Controller</h1>
-                <a href="/" class="back-link">Back to Home</a>
+                <a href="/" class="back-link">Home</a>
             </div>
-            <div class="logo-area">
-                <img src="/logo.png" alt="Belmont Simulation" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            <div class="header-group">
+                <button class="icon-btn" data-theme-toggle onclick="TimerApp.Theme.toggle()"></button>
+                <div class="logo-area"><img src="/logo.png" alt="Belmont Simulation"></div>
             </div>
         </div>
 
-        <div class="tab-bar">
+        <div class="tab-bar panel">
             <button class="tab-btn active" id="tab-timer-1" onclick="switchTab('timer-1')">
-                Timer 1<span class="tab-status-dot" id="dot-timer-1"></span>
+                <span>Timer 1<span class="tab-dot" id="dot-timer-1"></span></span>
                 <span class="tab-label" id="tablabel-timer-1">Timer 1</span>
             </button>
             <button class="tab-btn" id="tab-timer-2" onclick="switchTab('timer-2')">
-                Timer 2<span class="tab-status-dot" id="dot-timer-2"></span>
+                <span>Timer 2<span class="tab-dot" id="dot-timer-2"></span></span>
                 <span class="tab-label" id="tablabel-timer-2">Timer 2</span>
             </button>
             <button class="tab-btn" id="tab-timer-3" onclick="switchTab('timer-3')">
-                Timer 3<span class="tab-status-dot" id="dot-timer-3"></span>
+                <span>Timer 3<span class="tab-dot" id="dot-timer-3"></span></span>
                 <span class="tab-label" id="tablabel-timer-3">Timer 3</span>
             </button>
         </div>
 
         <div class="control-grid">
-            <div class="control-panel">
+            <div class="control-panel panel">
                 <h3>Timer Settings</h3>
                 <div class="form-group">
                     <label for="timerName">Timer Name</label>
                     <input type="text" id="timerName" placeholder="Enter timer name">
                 </div>
-                <button class="btn btn-primary" onclick="updateTimerName()">Update Name</button>
+                <div class="form-group">
+                    <button class="btn" onclick="updateTimerName()">Update Name</button>
+                </div>
 
-                <div class="form-group" style="margin-top: 20px;">
-                    <label for="hours">Hours</label>
-                    <input type="number" id="hours" min="0" max="23" value="0">
+                <div class="duration-row" style="margin-top: 22px;">
+                    <div class="form-group">
+                        <label for="hours">Hrs</label>
+                        <input type="number" id="hours" min="0" max="23" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="minutes">Min</label>
+                        <input type="number" id="minutes" min="0" max="59" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="seconds">Sec</label>
+                        <input type="number" id="seconds" min="0" max="59" value="0">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="minutes">Minutes</label>
-                    <input type="number" id="minutes" min="0" max="59" value="10">
+
+                <div class="preset-row">
+                    <button class="btn" onclick="preset(5)">5m</button>
+                    <button class="btn" onclick="preset(10)">10m</button>
+                    <button class="btn" onclick="preset(20)">20m</button>
+                    <button class="btn" onclick="preset(45)">45m</button>
+                    <button class="btn" onclick="preset(60)">60m</button>
                 </div>
-                <div class="form-group">
-                    <label for="seconds">Seconds</label>
-                    <input type="number" id="seconds" min="0" max="59" value="0">
-                </div>
-                <button class="btn btn-primary" onclick="setTimer()">Set Timer</button>
+
+                <button class="btn btn-primary" style="width: 100%;" onclick="setTimer()">Set Timer</button>
             </div>
 
-            <div class="control-panel">
+            <div class="control-panel panel">
                 <h3>Timer Controls</h3>
-                <div class="timer-controls">
-                    <button class="btn btn-success" onclick="startTimer()">Start</button>
-                    <button class="btn btn-warning" onclick="pauseTimer()">Pause</button>
-                    <button class="btn btn-danger" onclick="resetTimer()">Reset</button>
+                <div class="transport">
+                    <button class="btn btn-ok" onclick="startTimer()">Start</button>
+                    <button class="btn btn-warn" onclick="pauseTimer()">Pause</button>
+                    <button class="btn btn-crit" onclick="resetTimer()">Reset</button>
+                </div>
+
+                <div class="adjust-block">
+                    <label>Adjust while running</label>
+                    <div class="adjust-row">
+                        <button class="btn" onclick="adjust(-300)">−5m</button>
+                        <button class="btn" onclick="adjust(-60)">−1m</button>
+                        <button class="btn" onclick="adjust(-30)">−30s</button>
+                        <button class="btn" onclick="adjust(30)">+30s</button>
+                        <button class="btn" onclick="adjust(60)">+1m</button>
+                        <button class="btn" onclick="adjust(300)">+5m</button>
+                    </div>
                 </div>
 
                 <div class="toggle-control">
-                    <label>Blackout Screen</label>
+                    <label for="blackoutToggle">Blackout Screen</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="blackoutToggle" onchange="toggleBlackout()">
                         <span class="slider"></span>
@@ -562,32 +386,34 @@
 
                 <div class="status-display">
                     <div class="status-item">
-                        <span class="status-label">Status:</span>
+                        <span class="status-label">Status</span>
                         <span class="status-value" id="timerStatus">Stopped</span>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Time Remaining:</span>
-                        <span class="status-value" id="timeRemaining">00:00:00</span>
+                        <span class="status-label">Remaining</span>
+                        <span class="status-value digits" id="timeRemaining">00:00</span>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Total Time:</span>
-                        <span class="status-value" id="totalTime">00:00:00</span>
+                        <span class="status-label">Total</span>
+                        <span class="status-value" id="totalTime">00:00</span>
                     </div>
                 </div>
             </div>
 
-            <div class="control-panel">
+            <div class="control-panel panel">
                 <h3>Message Display</h3>
                 <div class="form-group">
                     <label for="messageText">Message Text</label>
                     <textarea id="messageText" rows="3" placeholder="Enter message to display"></textarea>
                 </div>
                 <div class="color-buttons">
-                    <button class="color-btn black" onclick="sendMessage('black')">Black</button>
-                    <button class="color-btn red" onclick="sendMessage('red')">Red</button>
-                    <button class="color-btn green" onclick="sendMessage('green')">Green</button>
+                    <button class="btn" onclick="sendMessage('black')">Neutral</button>
+                    <button class="btn btn-crit" onclick="sendMessage('red')">Urgent</button>
+                    <button class="btn btn-ok" onclick="sendMessage('green')">Positive</button>
                 </div>
-                <button class="btn btn-danger" style="margin-top: 10px;" onclick="clearMessage()">Clear Message</button>
+                <div class="form-group" style="margin-top: 10px;">
+                    <button class="btn" onclick="clearMessage()">Clear Message</button>
+                </div>
 
                 <div class="message-preview" id="messagePreview">No message</div>
             </div>
@@ -595,26 +421,29 @@
     </div>
 
     <script>
+        const { Theme, formatClock, createStore, mountConnection } = TimerApp;
+
+        Theme.init();
+
         const socket = io();
+        const store = createStore(socket);
+        mountConnection(socket);
+
         let isAuthenticated = false;
         let activeTimerId = 'timer-1';
 
-        const timerStates = {
-            'timer-1': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 1', message: { text: '', color: 'black' }, isBlackedOut: false },
-            'timer-2': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 2', message: { text: '', color: 'black' }, isBlackedOut: false },
-            'timer-3': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 3', message: { text: '', color: 'black' }, isBlackedOut: false }
-        };
-
+        /* ── Auth ────────────────────────────────────────────── */
         function authenticate() {
             socket.emit('authenticate', document.getElementById('password').value);
         }
 
-        socket.on('authResult', (result) => {
-            if (result) {
+        socket.on('authResult', (ok) => {
+            if (ok) {
                 isAuthenticated = true;
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('controllerScreen').style.display = 'block';
                 socket.emit('joinAll');
+                renderActiveTab();
             } else {
                 const err = document.getElementById('authError');
                 err.textContent = 'Invalid password. Please try again.';
@@ -626,84 +455,81 @@
             if (e.key === 'Enter') authenticate();
         });
 
-        socket.on('allTimerStates', (states) => {
-            Object.keys(states).forEach(id => { timerStates[id] = states[id]; });
-            updateTabIndicators();
-            if (isAuthenticated) renderActiveTab();
-        });
+        socket.on('connect', () => { if (isAuthenticated) socket.emit('joinAll'); });
 
-        socket.on('timerState', ({ timerId, state }) => {
-            timerStates[timerId] = state;
+        /* ── Wiring ──────────────────────────────────────────── */
+        store.onUpdate((timerId) => {
             updateTabIndicator(timerId);
             if (timerId === activeTimerId && isAuthenticated) renderActiveTab();
         });
 
         function switchTab(timerId) {
             activeTimerId = timerId;
-
-            // Update active tab button
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('tab-' + timerId).classList.add('active');
-
-            // Shift the whole controller color theme
-            document.getElementById('controllerScreen').setAttribute('data-theme', timerId);
-
-            // Staggered panel reveal animation
-            document.querySelectorAll('.control-panel').forEach((panel, i) => {
-                panel.classList.remove('refreshing');
-                void panel.offsetWidth; // force reflow to restart animation
-                panel.style.animationDelay = `${i * 55}ms`;
-                panel.classList.add('refreshing');
+            store.ids.forEach((id) => {
+                document.getElementById('tab-' + id).classList.toggle('active', id === timerId);
             });
-
+            document.getElementById('controllerScreen').setAttribute('data-timer', timerId);
             renderActiveTab();
         }
 
+        const MESSAGE_COLORS = { black: 'var(--text)', red: 'var(--crit)', green: 'var(--ok)' };
+
         function renderActiveTab() {
-            const state = timerStates[activeTimerId];
+            const state = store.states[activeTimerId];
             if (!state) return;
 
             document.getElementById('timerStatus').textContent = state.isRunning ? 'Running' : 'Stopped';
-            document.getElementById('timeRemaining').textContent = formatTime(state.remainingSeconds);
-            document.getElementById('totalTime').textContent = formatTime(state.totalSeconds);
+            document.getElementById('totalTime').textContent = formatClock(state.totalSeconds * 1000);
+
+            const remaining = document.getElementById('timeRemaining');
+            remaining.textContent = formatClock(store.remainingMs(activeTimerId));
+            remaining.className = 'status-value digits ' + store.level(activeTimerId);
+
             document.getElementById('blackoutToggle').checked = state.isBlackedOut;
 
-            if (document.activeElement !== document.getElementById('timerName')) {
-                document.getElementById('timerName').value = state.timerName;
-            }
+            const nameField = document.getElementById('timerName');
+            if (document.activeElement !== nameField) nameField.value = state.timerName;
 
             const preview = document.getElementById('messagePreview');
             if (state.message.text) {
                 preview.textContent = state.message.text;
-                preview.style.color = state.message.color;
+                preview.style.color = MESSAGE_COLORS[state.message.color] || 'var(--text)';
             } else {
                 preview.textContent = 'No message';
-                preview.style.color = '#999999';
+                preview.style.color = 'var(--text-faint)';
             }
         }
 
         function updateTabIndicator(timerId) {
-            const state = timerStates[timerId];
+            const state = store.states[timerId];
             const dot = document.getElementById('dot-' + timerId);
             const label = document.getElementById('tablabel-' + timerId);
-            if (dot) dot.className = 'tab-status-dot' + (state.isRunning ? ' running' : '');
+            if (dot) dot.className = 'tab-dot' + (state.isRunning ? ' running' : '');
             if (label) label.textContent = state.timerName;
         }
 
-        function updateTabIndicators() {
-            ['timer-1', 'timer-2', 'timer-3'].forEach(updateTabIndicator);
+        /* The remaining figure is derived locally, so tick it ourselves
+           rather than waiting on the server for every second. */
+        setInterval(() => { if (isAuthenticated) renderActiveTab(); }, 250);
+
+        /* ── Commands ────────────────────────────────────────── */
+        function preset(minutes) {
+            document.getElementById('hours').value = Math.floor(minutes / 60);
+            document.getElementById('minutes').value = minutes % 60;
+            document.getElementById('seconds').value = 0;
         }
 
         function setTimer() {
-            const h = parseInt(document.getElementById('hours').value) || 0;
-            const m = parseInt(document.getElementById('minutes').value) || 0;
-            const s = parseInt(document.getElementById('seconds').value) || 0;
+            const h = parseInt(document.getElementById('hours').value, 10) || 0;
+            const m = parseInt(document.getElementById('minutes').value, 10) || 0;
+            const s = parseInt(document.getElementById('seconds').value, 10) || 0;
             socket.emit('setTimer', { timerId: activeTimerId, seconds: h * 3600 + m * 60 + s });
         }
 
-        function startTimer()  { socket.emit('startTimer',  { timerId: activeTimerId }); }
-        function pauseTimer()  { socket.emit('pauseTimer',  { timerId: activeTimerId }); }
-        function resetTimer()  { socket.emit('resetTimer',  { timerId: activeTimerId }); }
+        function startTimer() { socket.emit('startTimer', { timerId: activeTimerId }); }
+        function pauseTimer() { socket.emit('pauseTimer', { timerId: activeTimerId }); }
+        function resetTimer() { socket.emit('resetTimer', { timerId: activeTimerId }); }
+        function adjust(deltaSeconds) { socket.emit('adjustTimer', { timerId: activeTimerId, deltaSeconds }); }
 
         function updateTimerName() {
             socket.emit('updateTimerName', { timerId: activeTimerId, name: document.getElementById('timerName').value });
@@ -720,15 +546,22 @@
         }
 
         function toggleBlackout() {
-            socket.emit('toggleBlackout', { timerId: activeTimerId, isBlackedOut: document.getElementById('blackoutToggle').checked });
+            socket.emit('toggleBlackout', {
+                timerId: activeTimerId,
+                isBlackedOut: document.getElementById('blackoutToggle').checked
+            });
         }
 
-        function formatTime(seconds) {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
+        /* ── Keyboard: space starts or pauses the active timer ── */
+        window.addEventListener('keydown', (e) => {
+            if (!isAuthenticated) return;
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                store.states[activeTimerId].isRunning ? pauseTimer() : startTimer();
+            }
+        });
     </script>
 </body>
 </html>

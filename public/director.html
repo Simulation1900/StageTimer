@@ -6,108 +6,41 @@
     <title>Director View</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/theme.css">
+    <script>
+        (function () {
+            try {
+                var forced = new URLSearchParams(location.search).get('theme');
+                var saved = localStorage.getItem('timer.theme');
+                var t = (forced === 'dark' || forced === 'light') ? forced
+                      : (saved === 'dark' || saved === 'light') ? saved
+                      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {}
+        })();
+    </script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        body { padding: 22px; }
 
-        body {
-            font-family: 'Montserrat', sans-serif;
-            background:
-                linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,240,245,0.95) 100%),
-                repeating-linear-gradient(45deg, #f8f8f8 0px, #f8f8f8 10px, #ffffff 10px, #ffffff 20px),
-                repeating-linear-gradient(-45deg, #f0f0f5 0px, #f0f0f5 10px, #fafafa 10px, #fafafa 20px);
-            background-size: 100% 100%, 40px 40px, 40px 40px;
-            position: relative;
-            min-height: 100vh;
-            color: #2d2d2d;
-            padding: 20px;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background:
-                linear-gradient(60deg, transparent 30%, rgba(106, 179, 231, 0.03) 30%, rgba(106, 179, 231, 0.03) 32%, transparent 32%, transparent 70%, rgba(29, 66, 144, 0.05) 70%, rgba(29, 66, 144, 0.05) 72%, transparent 72%),
-                linear-gradient(120deg, transparent 20%, rgba(134, 38, 51, 0.03) 20%, rgba(134, 38, 51, 0.03) 22%, transparent 22%, transparent 60%, rgba(106, 179, 231, 0.04) 60%, rgba(106, 179, 231, 0.04) 62%, transparent 62%);
-            background-size: 120px 120px, 80px 80px;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        body::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background:
-                radial-gradient(ellipse at 20% 30%, rgba(106, 179, 231, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 70%, rgba(29, 66, 144, 0.06) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        .page-wrapper {
-            position: relative;
-            z-index: 1;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
+        .page-wrapper { max-width: 1600px; margin: 0 auto; }
 
         .header {
-            background: rgba(255, 255, 255, 0.7);
-            padding: 16px 24px;
-            border-radius: 12px;
-            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
+            gap: 18px;
+            padding: 16px 22px;
+            margin-bottom: 18px;
         }
 
-        .header h1 {
-            font-family: 'Oswald', sans-serif;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #1d4290;
-        }
+        .header-group { display: flex; align-items: center; gap: 10px; }
+        .logo-area { width: 92px; height: 42px; opacity: 0.55; }
+        .logo-area img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .back-link { font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase; }
 
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .logo-area {
-            width: 100px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .back-link {
-            color: #1d4290;
-            text-decoration: none;
-            font-size: 0.9rem;
-        }
-
-        .back-link:hover { color: #6ab3e7; text-decoration: underline; }
-
-        /* 3-column grid */
         .timer-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -115,311 +48,235 @@
         }
 
         @media (max-width: 900px) {
+            body { padding: 12px; }
             .timer-grid { grid-template-columns: 1fr; }
         }
 
-        /* Individual timer card */
+        /* ── Card ────────────────────────────────────────────── */
         .timer-card {
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
+            position: relative;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            position: relative;
-            transition: box-shadow 0.3s ease;
+            border-top: 2px solid var(--border);
+            transition: border-color 0.6s ease;
         }
 
-        .timer-card.running {
-            border-color: rgba(39, 174, 96, 0.4);
-            box-shadow: 0 4px 20px rgba(39, 174, 96, 0.15);
-        }
-
-        .timer-card.critical {
-            border-color: rgba(134, 38, 51, 0.4);
-            box-shadow: 0 4px 20px rgba(134, 38, 51, 0.2);
-        }
+        .timer-card.running  { border-top-color: var(--ok); }
+        .timer-card.warning  { border-top-color: var(--warn); }
+        .timer-card.critical { border-top-color: var(--crit); }
 
         .card-header {
-            padding: 14px 20px;
-            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
         }
 
         .card-timer-name {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.2rem;
-            font-weight: 600;
-            letter-spacing: 1px;
+            font-size: 0.74rem;
+            font-weight: 400;
+            letter-spacing: 2.5px;
             text-transform: uppercase;
-            color: white;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .status-badge {
-            font-family: 'Oswald', sans-serif;
-            font-size: 0.75rem;
-            font-weight: 500;
-            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.6rem;
+            font-weight: 400;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            padding: 4px 10px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.2);
-            color: white;
+            color: var(--text-faint);
+            flex-shrink: 0;
         }
 
-        .status-badge.running {
-            background: rgba(39, 174, 96, 0.8);
-            box-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+        .status-badge::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--border-strong);
+            transition: background 0.3s ease;
         }
 
-        .status-badge.stopped {
-            background: rgba(255, 255, 255, 0.2);
-        }
+        .status-badge.running::before { background: var(--ok); }
 
         .card-body {
-            padding: 20px;
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 16px;
-            flex: 1;
+            padding: 26px 20px 22px;
         }
 
         .card-time {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 4.5rem;
-            font-weight: 800;
-            letter-spacing: 4px;
-            text-align: center;
-            transition: color 0.5s ease;
-        }
-
-        .card-time.normal { color: #1d4290; }
-        .card-time.warning { color: #f39c12; }
-        .card-time.critical {
-            color: #862633;
-            animation: pulse 1s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.02); }
+            font-size: clamp(2.6rem, 6vw, 4.2rem);
+            transition: color 1.2s ease;
         }
 
         .card-progress-container {
             width: 100%;
-            height: 12px;
-            background: rgba(255, 255, 255, 0.6);
-            border-radius: 6px;
+            height: 5px;
+            border-radius: 3px;
+            background: var(--accent-wash);
             overflow: hidden;
-            border: 1px solid rgba(29, 66, 144, 0.2);
         }
 
         .card-progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #1d4290 0%, #6ab3e7 100%);
-            transition: width 0.3s ease, background 0.5s ease;
-            border-radius: 6px;
+            border-radius: 3px;
+            background: var(--accent);
+            transition: width 0.9s linear, background 1.2s ease;
         }
 
-        .card-progress-bar.warning {
-            background: linear-gradient(90deg, #f39c12 0%, #f1c40f 100%);
-        }
-
-        .card-progress-bar.critical {
-            background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
-        }
+        .card-progress-bar.warning  { background: var(--warn); }
+        .card-progress-bar.critical { background: var(--crit); }
 
         .card-message {
-            font-size: 1rem;
-            font-weight: 600;
-            text-align: center;
-            padding: 10px 14px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.6);
             width: 100%;
-            min-height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 300;
+            line-height: 1.4;
             word-break: break-word;
         }
 
-        /* Blackout overlay per card */
+        .card-message:empty { display: none; }
+
+        /* ── Blackout ────────────────────────────────────────── */
         .card-blackout {
             position: absolute;
             inset: 0;
-            background: #000;
-            border-radius: 16px;
             z-index: 10;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
+            background: #000;
+            border-radius: var(--radius);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
         }
 
-        .card-blackout.active {
-            display: flex;
-        }
+        .card-blackout.active { opacity: 1; pointer-events: auto; }
 
         .card-blackout-label {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.2rem;
-            font-weight: 600;
-            letter-spacing: 3px;
+            font-size: 0.66rem;
+            font-weight: 300;
+            letter-spacing: 4px;
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.28);
         }
     </style>
 </head>
 <body>
     <div class="page-wrapper">
-        <div class="header">
+        <div class="header panel">
             <div>
                 <h1>Director View</h1>
-                <a href="/" class="back-link">Back to Home</a>
+                <a href="/" class="back-link">Home</a>
             </div>
-            <div class="header-right">
-                <div class="logo-area">
-                    <img src="/logo.png" alt="Belmont Simulation" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                </div>
-            </div>
-        </div>
-
-        <div class="timer-grid">
-            <!-- Timer 1 -->
-            <div class="timer-card" id="card-timer-1">
-                <div class="card-blackout" id="blackout-timer-1">
-                    <span class="card-blackout-label">Blacked Out</span>
-                </div>
-                <div class="card-header">
-                    <span class="card-timer-name" id="name-timer-1">Timer 1</span>
-                    <span class="status-badge stopped" id="badge-timer-1">Stopped</span>
-                </div>
-                <div class="card-body">
-                    <div class="card-time normal" id="time-timer-1">00:00:00</div>
-                    <div class="card-progress-container">
-                        <div class="card-progress-bar" id="progress-timer-1" style="width: 100%;"></div>
-                    </div>
-                    <div class="card-message" id="msg-timer-1"></div>
-                </div>
-            </div>
-
-            <!-- Timer 2 -->
-            <div class="timer-card" id="card-timer-2">
-                <div class="card-blackout" id="blackout-timer-2">
-                    <span class="card-blackout-label">Blacked Out</span>
-                </div>
-                <div class="card-header">
-                    <span class="card-timer-name" id="name-timer-2">Timer 2</span>
-                    <span class="status-badge stopped" id="badge-timer-2">Stopped</span>
-                </div>
-                <div class="card-body">
-                    <div class="card-time normal" id="time-timer-2">00:00:00</div>
-                    <div class="card-progress-container">
-                        <div class="card-progress-bar" id="progress-timer-2" style="width: 100%;"></div>
-                    </div>
-                    <div class="card-message" id="msg-timer-2"></div>
-                </div>
-            </div>
-
-            <!-- Timer 3 -->
-            <div class="timer-card" id="card-timer-3">
-                <div class="card-blackout" id="blackout-timer-3">
-                    <span class="card-blackout-label">Blacked Out</span>
-                </div>
-                <div class="card-header">
-                    <span class="card-timer-name" id="name-timer-3">Timer 3</span>
-                    <span class="status-badge stopped" id="badge-timer-3">Stopped</span>
-                </div>
-                <div class="card-body">
-                    <div class="card-time normal" id="time-timer-3">00:00:00</div>
-                    <div class="card-progress-container">
-                        <div class="card-progress-bar" id="progress-timer-3" style="width: 100%;"></div>
-                    </div>
-                    <div class="card-message" id="msg-timer-3"></div>
-                </div>
+            <div class="header-group">
+                <button class="icon-btn" data-theme-toggle onclick="TimerApp.Theme.toggle()"></button>
+                <div class="logo-area"><img src="/logo.png" alt="Belmont Simulation"></div>
             </div>
         </div>
+
+        <div class="timer-grid" id="timerGrid"></div>
     </div>
 
+    <template id="cardTemplate">
+        <div class="timer-card panel">
+            <div class="card-blackout"><span class="card-blackout-label">Blacked Out</span></div>
+            <div class="card-header">
+                <span class="card-timer-name"></span>
+                <span class="status-badge">Stopped</span>
+            </div>
+            <div class="card-body stale-dim">
+                <div class="card-time digits normal">00:00</div>
+                <div class="card-progress-container">
+                    <div class="card-progress-bar" style="width: 100%;"></div>
+                </div>
+                <div class="card-message"></div>
+            </div>
+        </div>
+    </template>
+
     <script>
+        const { Theme, formatClock, createStore, mountConnection } = TimerApp;
+
+        Theme.init();
+
         const socket = io();
+        const store = createStore(socket);
+        mountConnection(socket);
 
-        const timerStates = {
-            'timer-1': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 1', message: { text: '', color: 'black' }, isBlackedOut: false },
-            'timer-2': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 2', message: { text: '', color: 'black' }, isBlackedOut: false },
-            'timer-3': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 3', message: { text: '', color: 'black' }, isBlackedOut: false }
-        };
+        socket.on('connect', () => socket.emit('joinAll'));
 
-        socket.on('allTimerStates', (states) => {
-            Object.keys(states).forEach(id => { timerStates[id] = states[id]; });
-            socket.emit('joinAll');
-            ['timer-1', 'timer-2', 'timer-3'].forEach(renderCard);
-        });
+        const MESSAGE_COLORS = { black: 'var(--text)', red: 'var(--crit)', green: 'var(--ok)' };
 
-        socket.on('timerState', ({ timerId, state }) => {
-            timerStates[timerId] = state;
-            renderCard(timerId);
+        /* Build the three cards from one template rather than three
+           near-identical copies of the same markup. */
+        const grid = document.getElementById('timerGrid');
+        const template = document.getElementById('cardTemplate');
+        const cards = {};
+
+        store.ids.forEach((timerId) => {
+            const node = template.content.firstElementChild.cloneNode(true);
+            grid.appendChild(node);
+            cards[timerId] = {
+                card: node,
+                name: node.querySelector('.card-timer-name'),
+                badge: node.querySelector('.status-badge'),
+                time: node.querySelector('.card-time'),
+                bar: node.querySelector('.card-progress-bar'),
+                message: node.querySelector('.card-message'),
+                blackout: node.querySelector('.card-blackout')
+            };
         });
 
         function renderCard(timerId) {
-            const state = timerStates[timerId];
-            const card = document.getElementById('card-' + timerId);
+            const state = store.states[timerId];
+            const ui = cards[timerId];
+            if (!state || !ui) return;
 
-            // Name & status badge
-            document.getElementById('name-' + timerId).textContent = state.timerName;
-            const badge = document.getElementById('badge-' + timerId);
-            badge.textContent = state.isRunning ? 'Running' : 'Stopped';
-            badge.className = 'status-badge ' + (state.isRunning ? 'running' : 'stopped');
+            ui.name.textContent = state.timerName;
+            ui.badge.textContent = state.isRunning ? 'Running' : 'Stopped';
+            ui.badge.className = 'status-badge' + (state.isRunning ? ' running' : '');
 
-            // Time display
-            const timeEl = document.getElementById('time-' + timerId);
-            timeEl.textContent = formatTime(state.remainingSeconds);
+            const level = store.level(timerId);
+            ui.time.textContent = formatClock(store.remainingMs(timerId));
+            ui.time.className = 'card-time digits ' + level;
 
-            const pct = state.totalSeconds > 0 ? (state.remainingSeconds / state.totalSeconds) * 100 : 100;
+            ui.bar.style.width = (store.fractionLeft(timerId) * 100) + '%';
+            ui.bar.className = 'card-progress-bar' + (level === 'normal' ? '' : ' ' + level);
 
-            timeEl.classList.remove('normal', 'warning', 'critical');
-            if (pct <= 5) timeEl.classList.add('critical');
-            else if (pct <= 20) timeEl.classList.add('warning');
-            else timeEl.classList.add('normal');
+            ui.card.className = 'timer-card panel';
+            if (state.isRunning) ui.card.classList.add(level === 'normal' ? 'running' : level);
 
-            // Card border state
-            card.classList.remove('running', 'critical');
-            if (pct <= 5 && state.isRunning) card.classList.add('critical');
-            else if (state.isRunning) card.classList.add('running');
-
-            // Progress bar
-            const bar = document.getElementById('progress-' + timerId);
-            bar.style.width = pct + '%';
-            bar.classList.remove('warning', 'critical');
-            if (pct <= 5) bar.classList.add('critical');
-            else if (pct <= 20) bar.classList.add('warning');
-
-            // Message
-            const msgEl = document.getElementById('msg-' + timerId);
             if (state.message.text) {
-                msgEl.textContent = state.message.text;
-                msgEl.style.color = state.message.color;
+                ui.message.textContent = state.message.text;
+                ui.message.style.color = MESSAGE_COLORS[state.message.color] || 'var(--text)';
             } else {
-                msgEl.textContent = '';
-                msgEl.style.color = '';
+                ui.message.textContent = '';
             }
 
-            // Blackout overlay on card
-            const blackout = document.getElementById('blackout-' + timerId);
-            blackout.classList.toggle('active', state.isBlackedOut);
+            ui.blackout.classList.toggle('active', state.isBlackedOut);
         }
 
-        function formatTime(seconds) {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
+        store.onUpdate(renderCard);
+
+        // Countdowns are derived locally, so tick every card ourselves.
+        setInterval(() => store.ids.forEach(renderCard), 250);
+        store.ids.forEach(renderCard);
     </script>
 </body>
 </html>

@@ -6,382 +6,488 @@
     <title>Timer Display</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/theme.css">
+    <script>
+        /* Stamp the theme before first paint so there is no flash. */
+        (function () {
+            try {
+                var forced = new URLSearchParams(location.search).get('theme');
+                var saved = localStorage.getItem('timer.theme');
+                var t = (forced === 'dark' || forced === 'light') ? forced
+                      : (saved === 'dark' || saved === 'light') ? saved
+                      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {}
+        })();
+    </script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        body { overflow: hidden; }
 
-        body {
-            font-family: 'Montserrat', sans-serif;
-            background:
-                linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,240,245,0.95) 100%),
-                repeating-linear-gradient(45deg, #f8f8f8 0px, #f8f8f8 10px, #ffffff 10px, #ffffff 20px),
-                repeating-linear-gradient(-45deg, #f0f0f5 0px, #f0f0f5 10px, #fafafa 10px, #fafafa 20px);
-            background-size: 100% 100%, 40px 40px, 40px 40px;
-            position: relative;
-            min-height: 100vh;
-            color: #2d2d2d;
-            overflow: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background:
-                linear-gradient(60deg, transparent 30%, rgba(106, 179, 231, 0.03) 30%, rgba(106, 179, 231, 0.03) 32%, transparent 32%, transparent 70%, rgba(29, 66, 144, 0.05) 70%, rgba(29, 66, 144, 0.05) 72%, transparent 72%),
-                linear-gradient(120deg, transparent 20%, rgba(134, 38, 51, 0.03) 20%, rgba(134, 38, 51, 0.03) 22%, transparent 22%, transparent 60%, rgba(106, 179, 231, 0.04) 60%, rgba(106, 179, 231, 0.04) 62%, transparent 62%);
-            background-size: 120px 120px, 80px 80px;
+        /* ── Ambient canvas (calm mode only) ─────────────────── */
+        #ambient {
+            position: fixed;
+            inset: 0;
             z-index: 0;
+            opacity: 0;
             pointer-events: none;
+            transition: opacity 1.2s ease;
         }
 
-        body::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background:
-                radial-gradient(ellipse at 20% 30%, rgba(106, 179, 231, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 70%, rgba(29, 66, 144, 0.06) 0%, transparent 50%);
-            z-index: 0;
-            pointer-events: none;
-        }
+        body.calm #ambient { opacity: 1; }
 
+        /* ── Header ──────────────────────────────────────────── */
         .header {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 5;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px 40px;
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            z-index: 2;
-            gap: 20px;
+            gap: 18px;
+            padding: 14px 28px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
         }
 
-        .timer-name {
-            font-family: 'Oswald', sans-serif;
-            font-size: 2rem;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #1d4290;
-            text-shadow: 1px 1px 2px rgba(106, 179, 231, 0.3);
-            flex-shrink: 0;
-        }
+        .header-group { display: flex; align-items: center; gap: 10px; }
 
-        /* Timer selector tabs in header */
-        .timer-tabs {
-            display: flex;
-            gap: 4px;
-            background: rgba(255, 255, 255, 0.6);
-            padding: 4px;
-            border-radius: 10px;
-            border: 1px solid rgba(29, 66, 144, 0.15);
-        }
+        .logo-area { width: 100px; height: 44px; opacity: 0.55; flex-shrink: 0; }
+        .logo-area img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        .timer-tab-btn {
-            font-family: 'Oswald', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            padding: 6px 16px;
-            border: none;
-            border-radius: 7px;
-            cursor: pointer;
-            background: transparent;
-            color: #5a5a5a;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .timer-tab-btn:hover {
-            background: rgba(106, 179, 231, 0.2);
-            color: #1d4290;
-        }
-
-        .timer-tab-btn.active {
-            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
-            color: white;
-            box-shadow: 0 2px 8px rgba(29, 66, 144, 0.3);
-        }
-
-        .logo-area {
-            width: 120px;
-            height: 60px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 5px;
-            flex-shrink: 0;
-        }
-
-        .container {
+        /* ── Stage: the timer itself ─────────────────────────── */
+        .stage {
             position: relative;
             z-index: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             min-height: 100vh;
-            padding: 20px;
-            padding-top: 100px;
+            padding: 90px 24px 40px;
+            transition: opacity 0.6s ease;
+        }
+
+        .timer-name {
+            font-size: 0.85rem;
+            font-weight: 400;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            transition: font-size 0.5s ease, color 0.5s ease;
         }
 
         .timer-display {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 12rem;
-            font-weight: 800;
-            text-align: center;
-            margin: 40px 0;
-            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.15);
-            transition: color 0.5s ease;
-            letter-spacing: 10px;
-        }
-
-        .timer-display.normal { color: #1d4290; }
-        .timer-display.warning { color: #f39c12; }
-        .timer-display.critical {
-            color: #862633;
-            animation: pulse 1s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.02); }
+            font-size: clamp(4rem, 17vw, 13rem);
+            line-height: 1.05;
+            margin: 0.18em 0 0.3em;
+            transition: color 1.2s ease, font-size 0.5s ease, opacity 0.6s ease;
         }
 
         .progress-container {
-            width: 80%;
-            max-width: 1000px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.6);
-            border-radius: 20px;
+            width: min(70vw, 760px);
+            height: 5px;
+            border-radius: 3px;
+            background: var(--accent-wash);
             overflow: hidden;
-            border: 2px solid #1d4290;
-            box-shadow: 0 4px 15px rgba(29, 66, 144, 0.15);
+            transition: opacity 0.5s ease;
         }
 
         .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #1d4290 0%, #6ab3e7 100%);
-            transition: width 0.3s ease, background 0.5s ease;
-            border-radius: 18px;
-            box-shadow: 0 0 20px rgba(106, 179, 231, 0.5);
+            width: 100%;
+            border-radius: 3px;
+            background: var(--accent);
+            transition: width 0.9s linear, background 1.2s ease;
         }
 
-        .progress-bar.warning {
-            background: linear-gradient(90deg, #f39c12 0%, #f1c40f 100%);
-            box-shadow: 0 0 20px rgba(241, 196, 15, 0.5);
-        }
+        .progress-bar.warning  { background: var(--warn); }
+        .progress-bar.critical { background: var(--crit); }
 
-        .progress-bar.critical {
-            background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
-            box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
-        }
-
+        /* A message is the one thing on screen allowed to interrupt,
+           so it stays legible — but it takes up no room when empty. */
         .message-display {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 3rem;
+            font-size: clamp(1.1rem, 2.4vw, 2rem);
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            line-height: 1.45;
             text-align: center;
-            margin-top: 40px;
-            padding: 30px;
-            min-height: 100px;
-            max-width: 1200px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-            font-weight: 700;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            max-width: 900px;
+            margin-top: 2.2rem;
+            padding: 0 20px;
         }
 
+        .message-display:empty { display: none; }
+
+        /* ── Calm mode ───────────────────────────────────────────
+           The clock steps aside into a corner and the wave takes over
+           as the way you read the session: its level is the fraction
+           of time left, draining slowly down the screen. */
+        body.calm .stage {
+            position: fixed;
+            min-height: 0;
+            padding: 0;
+            align-items: flex-end;
+            transition: opacity 0.6s ease, inset 0.8s ease;
+        }
+
+        body.calm .timer-name { font-size: 0.62rem; letter-spacing: 3px; }
+
+        body.calm .timer-display {
+            font-size: clamp(2.2rem, 5vw, 4rem);
+            letter-spacing: 2px;
+            margin: 0.05em 0 0;
+            opacity: 0.62;
+        }
+
+        /* As time runs out the clock quietly comes forward. */
+        body.calm .timer-display.warning  { opacity: 0.8; }
+        body.calm .timer-display.critical { opacity: 1; }
+
+        body.calm .progress-container { opacity: 0; height: 0; }
+
+        body.calm .message-display {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0;
+            max-width: min(80vw, 900px);
+        }
+
+        body.calm[data-corner="br"] .stage { inset: auto 5vw 6vh auto; align-items: flex-end; }
+        body.calm[data-corner="bl"] .stage { inset: auto auto 6vh 5vw; align-items: flex-start; }
+        body.calm[data-corner="tr"] .stage { inset: 11vh 5vw auto auto; align-items: flex-end; }
+        body.calm[data-corner="tl"] .stage { inset: 11vh auto auto 5vw; align-items: flex-start; }
+
+        /* Only meaningful in calm mode. */
+        #cornerBtn { display: none; }
+        body.calm #cornerBtn { display: flex; }
+
+        /* ── Blackout ────────────────────────────────────────── */
         .blackout {
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: #000000;
+            inset: 0;
+            background: #000;
             z-index: 9999;
-            display: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
         }
 
-        .blackout.active { display: block; }
+        .blackout.active { opacity: 1; pointer-events: auto; }
 
-        .back-link {
-            position: absolute;
-            bottom: 20px;
+        /* ── Footer hint ─────────────────────────────────────── */
+        .hint {
+            position: fixed;
+            bottom: 16px;
             left: 20px;
-            color: #1d4290;
-            text-decoration: none;
-            font-size: 1rem;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            z-index: 2;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.62rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-faint);
         }
 
-        .back-link:hover {
-            background: rgba(106, 179, 231, 0.2);
-            transform: translateY(-2px);
+        .hint kbd {
+            font-family: var(--font);
+            font-size: 0.6rem;
+            border: 1px solid var(--border-strong);
+            border-radius: 4px;
+            padding: 1px 5px;
         }
 
         @media (max-width: 768px) {
-            .timer-display { font-size: 6rem; }
-            .timer-name { font-size: 1.2rem; }
-            .message-display { font-size: 2rem; }
-            .progress-container { width: 90%; }
-            .header { padding: 10px 20px; flex-wrap: wrap; }
-            .logo-area { width: 80px; height: 50px; }
+            .header { padding: 10px 14px; flex-wrap: wrap; gap: 10px; }
+            .logo-area { width: 66px; height: 34px; }
+            .hint { display: none; }
         }
     </style>
 </head>
 <body>
+    <canvas id="ambient"></canvas>
     <div class="blackout" id="blackout"></div>
 
-    <div class="header">
-        <div class="timer-name" id="timerName">Timer</div>
-        <div class="timer-tabs" id="timerTabs">
-            <button class="timer-tab-btn active" id="endpointtab-timer-1" onclick="selectTimer('timer-1')">Timer 1</button>
-            <button class="timer-tab-btn" id="endpointtab-timer-2" onclick="selectTimer('timer-2')">Timer 2</button>
-            <button class="timer-tab-btn" id="endpointtab-timer-3" onclick="selectTimer('timer-3')">Timer 3</button>
+    <div class="header chrome">
+        <div class="segmented" id="timerTabs">
+            <button id="tab-timer-1" class="active" onclick="selectTimer('timer-1')">Timer 1</button>
+            <button id="tab-timer-2" onclick="selectTimer('timer-2')">Timer 2</button>
+            <button id="tab-timer-3" onclick="selectTimer('timer-3')">Timer 3</button>
         </div>
-        <div class="logo-area">
-            <img src="/logo.png" alt="Belmont Simulation" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+
+        <div class="header-group">
+            <div class="segmented" id="modeSwitch">
+                <button id="mode-focus" class="active" onclick="setMode('focus')">Focus</button>
+                <button id="mode-calm" onclick="setMode('calm')">Calm</button>
+            </div>
+            <button class="icon-btn" id="cornerBtn" onclick="cycleCorner()" title="Move the clock (P)" aria-label="Move the clock">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="13" y="13" width="6" height="6" rx="1"/></svg>
+            </button>
+            <button class="icon-btn" onclick="TimerApp.Fullscreen.toggle()" title="Fullscreen (F)" aria-label="Fullscreen">
+                <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            </button>
+            <button class="icon-btn" data-theme-toggle onclick="TimerApp.Theme.toggle()"></button>
+            <div class="logo-area"><img src="/logo.png" alt="Belmont Simulation"></div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="timer-display normal" id="timerDisplay">00:00:00</div>
-        <div class="progress-container">
-            <div class="progress-bar" id="progressBar" style="width: 100%;"></div>
+    <div class="stage" id="stage">
+        <div class="timer-name stale-dim" id="timerName">Timer</div>
+        <div class="timer-display digits normal stale-dim" id="timerDisplay">00:00</div>
+        <div class="progress-container stale-dim">
+            <div class="progress-bar" id="progressBar"></div>
         </div>
         <div class="message-display" id="messageDisplay"></div>
     </div>
 
-    <a href="/" class="back-link">Home</a>
+    <div class="hint chrome">
+        <a href="/">Home</a>
+        <span><kbd>F</kbd> fullscreen</span>
+        <span><kbd>C</kbd> calm</span>
+        <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> timer</span>
+    </div>
 
     <script>
+        const { Theme, Fullscreen, formatClock, createStore, mountConnection,
+                keepAwake, autoHideChrome, prefersReducedMotion } = TimerApp;
+
+        Theme.init();
+
         const socket = io();
+        const store = createStore(socket);
+        mountConnection(socket);
+        keepAwake();
+        autoHideChrome(4000);
 
-        // Read ?timer=1, ?timer=2, or ?timer=3 from URL; default to timer-1
-        const urlParam = new URLSearchParams(window.location.search).get('timer');
-        let activeTimerId = ['1','2','3'].includes(urlParam) ? `timer-${urlParam}` : 'timer-1';
+        const params = new URLSearchParams(location.search);
 
-        const timerStates = {
-            'timer-1': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 1', message: { text: '', color: 'white' }, isBlackedOut: false },
-            'timer-2': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 2', message: { text: '', color: 'white' }, isBlackedOut: false },
-            'timer-3': { totalSeconds: 0, remainingSeconds: 0, isRunning: false, timerName: 'Timer 3', message: { text: '', color: 'white' }, isBlackedOut: false }
-        };
+        /* ── Which timer ─────────────────────────────────────── */
+        const timerParam = params.get('timer');
+        let activeTimerId = ['1', '2', '3'].includes(timerParam) ? `timer-${timerParam}` : 'timer-1';
 
-        // On connect: load all states, then subscribe to active timer
-        socket.on('allTimerStates', (states) => {
-            Object.keys(states).forEach(id => { timerStates[id] = states[id]; });
-            updateTabLabels();
-            socket.emit('joinTimer', activeTimerId);
-            setActiveTab(activeTimerId);
-            updateDisplay();
-        });
+        /* ── Mode and clock corner, remembered per browser ───── */
+        const STORE_MODE = 'timer.mode';
+        const STORE_CORNER = 'timer.corner';
+        const CORNERS = ['br', 'bl', 'tl', 'tr'];
 
-        // Receive real-time updates for subscribed timer
-        socket.on('timerState', ({ timerId, state }) => {
-            timerStates[timerId] = state;
-            updateTabLabel(timerId);
-            if (timerId === activeTimerId) updateDisplay();
-        });
+        function read(key, fallback) {
+            try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
+        }
+        function write(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) {}
+        }
+
+        let mode = params.get('mode') === 'calm' || params.get('mode') === 'focus'
+            ? params.get('mode')
+            : read(STORE_MODE, 'focus');
+        let corner = read(STORE_CORNER, 'br');
+        if (!CORNERS.includes(corner)) corner = 'br';
+
+        function setMode(next) {
+            mode = next;
+            write(STORE_MODE, next);
+            document.body.classList.toggle('calm', next === 'calm');
+            document.body.setAttribute('data-corner', corner);
+            document.getElementById('mode-focus').classList.toggle('active', next === 'focus');
+            document.getElementById('mode-calm').classList.toggle('active', next === 'calm');
+            syncUrl();
+        }
+
+        function cycleCorner() {
+            corner = CORNERS[(CORNERS.indexOf(corner) + 1) % CORNERS.length];
+            write(STORE_CORNER, corner);
+            document.body.setAttribute('data-corner', corner);
+        }
+
+        function syncUrl() {
+            const url = new URL(location.href);
+            url.searchParams.set('timer', activeTimerId.replace('timer-', ''));
+            url.searchParams.set('mode', mode);
+            history.replaceState({}, '', url);
+        }
 
         function selectTimer(timerId) {
             socket.emit('leaveTimer', activeTimerId);
             activeTimerId = timerId;
             socket.emit('joinTimer', activeTimerId);
-            setActiveTab(activeTimerId);
-            updateDisplay();
-
-            // Update URL without reload for bookmarkability
-            const url = new URL(window.location);
-            url.searchParams.set('timer', timerId.replace('timer-', ''));
-            window.history.replaceState({}, '', url);
+            store.ids.forEach((id) => {
+                document.getElementById('tab-' + id).classList.toggle('active', id === timerId);
+            });
+            syncUrl();
+            render();
         }
 
-        function setActiveTab(timerId) {
-            document.querySelectorAll('.timer-tab-btn').forEach(btn => btn.classList.remove('active'));
-            const btn = document.getElementById('endpointtab-' + timerId);
-            if (btn) btn.classList.add('active');
-        }
+        /* ── Wiring ──────────────────────────────────────────── */
+        socket.on('connect', () => socket.emit('joinTimer', activeTimerId));
 
-        function updateTabLabel(timerId) {
-            const btn = document.getElementById('endpointtab-' + timerId);
-            if (btn) btn.textContent = timerStates[timerId].timerName;
-        }
+        store.onUpdate((timerId) => {
+            const btn = document.getElementById('tab-' + timerId);
+            if (btn) btn.textContent = store.states[timerId].timerName;
+            if (timerId === activeTimerId) render();
+        });
 
-        function updateTabLabels() {
-            ['timer-1', 'timer-2', 'timer-3'].forEach(updateTabLabel);
-        }
+        /* Discreet stand-ins for the controller's black / red / green. */
+        const MESSAGE_COLORS = {
+            black: 'var(--text)',
+            red:   'var(--crit)',
+            green: 'var(--ok)'
+        };
 
-        function updateDisplay() {
-            const state = timerStates[activeTimerId];
+        const el = {
+            name: document.getElementById('timerName'),
+            time: document.getElementById('timerDisplay'),
+            bar: document.getElementById('progressBar'),
+            message: document.getElementById('messageDisplay'),
+            blackout: document.getElementById('blackout')
+        };
 
-            document.getElementById('timerName').textContent = state.timerName;
+        let lastClock = null;
+        let lastLevel = null;
 
-            const timerDisplay = document.getElementById('timerDisplay');
-            timerDisplay.textContent = formatTime(state.remainingSeconds);
+        /* Everything that only moves when the server says so. */
+        function render() {
+            const state = store.states[activeTimerId];
+            if (!state) return;
 
-            const percentRemaining = state.totalSeconds > 0
-                ? (state.remainingSeconds / state.totalSeconds) * 100
-                : 100;
+            el.name.textContent = state.timerName;
+            tick();
 
-            timerDisplay.classList.remove('normal', 'warning', 'critical');
-            if (percentRemaining <= 5) {
-                timerDisplay.classList.add('critical');
-            } else if (percentRemaining <= 20) {
-                timerDisplay.classList.add('warning');
-            } else {
-                timerDisplay.classList.add('normal');
-            }
-
-            const progressBar = document.getElementById('progressBar');
-            progressBar.style.width = percentRemaining + '%';
-            progressBar.classList.remove('warning', 'critical');
-            if (percentRemaining <= 5) progressBar.classList.add('critical');
-            else if (percentRemaining <= 20) progressBar.classList.add('warning');
-
-            const messageDisplay = document.getElementById('messageDisplay');
             if (state.message.text) {
-                messageDisplay.textContent = state.message.text;
-                messageDisplay.style.color = state.message.color;
+                el.message.textContent = state.message.text;
+                el.message.style.color = MESSAGE_COLORS[state.message.color] || 'var(--text)';
             } else {
-                messageDisplay.textContent = '';
+                el.message.textContent = '';
             }
 
-            const blackout = document.getElementById('blackout');
-            blackout.classList.toggle('active', state.isBlackedOut);
+            el.blackout.classList.toggle('active', state.isBlackedOut);
         }
 
-        function formatTime(seconds) {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        /* Runs on every frame, so it touches the DOM only on a real change.
+           The progress bar moves once a second and its own 0.9s transition
+           carries it smoothly between ticks. */
+        function tick() {
+            const clock = formatClock(store.remainingMs(activeTimerId));
+            if (clock !== lastClock) {
+                lastClock = clock;
+                el.time.textContent = clock;
+                el.bar.style.width = (store.fractionLeft(activeTimerId) * 100) + '%';
+            }
+
+            const level = store.level(activeTimerId);
+            if (level !== lastLevel) {
+                lastLevel = level;
+                el.time.className = 'timer-display digits stale-dim ' + level;
+                el.bar.className = 'progress-bar' + (level === 'normal' ? '' : ' ' + level);
+            }
         }
 
-        updateDisplay();
+        /* ── Ambient wave field ──────────────────────────────────
+           Three drifting sine layers filled up to a level set by the
+           fraction of time remaining. The level eases toward its target
+           rather than jumping, so nothing on screen ever moves sharply. */
+        const canvas = document.getElementById('ambient');
+        const ctx = canvas.getContext('2d');
+        const reduceMotion = prefersReducedMotion();
+
+        const LAYERS = [
+            { length: 210, amp: 15, speed: 0.00013, phase: 0.0, offset: 26, alpha: 0.10 },
+            { length: 155, amp: 11, speed: 0.00021, phase: 2.1, offset: 12, alpha: 0.13 },
+            { length: 275, amp: 19, speed: 0.00009, phase: 4.3, offset: 0,  alpha: 0.17 }
+        ];
+
+        let cssW = 0, cssH = 0;
+        let shownLevel = 1;       // eased fill level, 0..1
+        let waveRgb = { r: 110, g: 125, b: 148 };
+
+        function resize() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            cssW = window.innerWidth;
+            cssH = window.innerHeight;
+            canvas.width = Math.round(cssW * dpr);
+            canvas.height = Math.round(cssH * dpr);
+            canvas.style.width = cssW + 'px';
+            canvas.style.height = cssH + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function cssVarRgb(name) {
+            const hex = getComputedStyle(document.documentElement)
+                .getPropertyValue(name).trim().replace('#', '');
+            if (hex.length !== 6) return { r: 110, g: 125, b: 148 };
+            return {
+                r: parseInt(hex.slice(0, 2), 16),
+                g: parseInt(hex.slice(2, 4), 16),
+                b: parseInt(hex.slice(4, 6), 16)
+            };
+        }
+
+        function drawWaves(ts) {
+            ctx.clearRect(0, 0, cssW, cssH);
+
+            // Waves sit at the water line; the surface falls as time drains.
+            const baseY = cssH * (1 - shownLevel);
+
+            LAYERS.forEach((layer) => {
+                const t = reduceMotion ? 0 : ts;
+                ctx.beginPath();
+                ctx.moveTo(0, cssH);
+                for (let x = 0; x <= cssW; x += 8) {
+                    const y = baseY + layer.offset
+                        + Math.sin(x / layer.length + t * layer.speed + layer.phase) * layer.amp
+                        + Math.sin(x / (layer.length * 0.43) + t * layer.speed * 1.6) * layer.amp * 0.35;
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(cssW, cssH);
+                ctx.closePath();
+                ctx.fillStyle = `rgba(${waveRgb.r}, ${waveRgb.g}, ${waveRgb.b}, ${layer.alpha})`;
+                ctx.fill();
+            });
+        }
+
+        function frame(ts) {
+            requestAnimationFrame(frame);
+            if (document.hidden) return;
+
+            tick();
+
+            if (mode !== 'calm') return;
+
+            // Ease the level and the colour so both changes read as drift.
+            const target = store.fractionLeft(activeTimerId);
+            shownLevel += (target - shownLevel) * 0.04;
+
+            const level = store.level(activeTimerId);
+            const goal = cssVarRgb(level === 'critical' ? '--crit' : level === 'warning' ? '--warn' : '--accent');
+            waveRgb.r += (goal.r - waveRgb.r) * 0.02;
+            waveRgb.g += (goal.g - waveRgb.g) * 0.02;
+            waveRgb.b += (goal.b - waveRgb.b) * 0.02;
+
+            drawWaves(ts);
+        }
+
+        /* ── Keyboard ────────────────────────────────────────── */
+        window.addEventListener('keydown', (e) => {
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            const key = e.key.toLowerCase();
+            if (key === 'f') Fullscreen.toggle();
+            else if (key === 'c') setMode(mode === 'calm' ? 'focus' : 'calm');
+            else if (key === 'd') Theme.toggle();
+            else if (key === 'p') cycleCorner();
+            else if (['1', '2', '3'].includes(key)) selectTimer('timer-' + key);
+        });
+
+        window.addEventListener('resize', resize);
+
+        /* ── Go ──────────────────────────────────────────────── */
+        resize();
+        setMode(mode);
+        shownLevel = store.fractionLeft(activeTimerId);
+        requestAnimationFrame(frame);
     </script>
 </body>
 </html>

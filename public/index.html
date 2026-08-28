@@ -6,149 +6,93 @@
     <title>Simulation Timer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/theme.css">
+    <script>
+        (function () {
+            try {
+                var forced = new URLSearchParams(location.search).get('theme');
+                var saved = localStorage.getItem('timer.theme');
+                var t = (forced === 'dark' || forced === 'light') ? forced
+                      : (saved === 'dark' || saved === 'light') ? saved
+                      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {}
+        })();
+    </script>
+    <script src="/app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Montserrat', sans-serif;
-            background: linear-gradient(-45deg, #b8ccee, #e8b0bc, #a8c8ee, #d4a8d4, #8eb8e8, #e8a8b8);
-            background-size: 400% 400%;
-            animation: gradientFlow 12s ease infinite;
-            min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
-            color: #2d2d2d;
+            justify-content: center;
+            padding: 24px;
         }
 
-        @keyframes gradientFlow {
-            0%   { background-position: 0% 50%; }
-            50%  { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+        .theme-corner { position: fixed; top: 20px; right: 20px; }
 
         .container {
-            position: relative;
-            z-index: 1;
+            width: 100%;
+            max-width: 460px;
+            padding: 46px 40px 36px;
             text-align: center;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
         }
 
         h1 {
-            font-family: 'Oswald', sans-serif;
-            font-size: 3rem;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #1d4290;
-            text-shadow: 2px 2px 4px rgba(106, 179, 231, 0.3);
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            font-size: 1.05rem;
+            letter-spacing: 5px;
+            color: var(--text);
         }
 
-        p {
-            font-size: 1.2rem;
-            margin-bottom: 40px;
-            color: #5a5a5a;
+        .tagline {
+            margin-top: 12px;
+            font-size: 0.72rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-faint);
         }
 
         .button-container {
             display: flex;
-            gap: 30px;
-            justify-content: center;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 10px;
+            margin: 34px 0 26px;
         }
 
-        .btn {
-            font-family: 'Oswald', sans-serif;
-            padding: 20px 50px;
-            font-size: 1.5rem;
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            text-decoration: none;
-            color: #ffffff;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            border: 2px solid transparent;
-            min-width: 200px;
-        }
-
-        .btn-controller {
-            background: linear-gradient(135deg, #862633 0%, #a83545 100%);
-        }
-
-        .btn-controller:hover {
-            background: linear-gradient(135deg, #a83545 0%, #862633 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(134, 38, 51, 0.4);
-            border-color: #ff6b7a;
-        }
-
-        .btn-endpoint {
-            background: linear-gradient(135deg, #1d4290 0%, #2557b8 100%);
-        }
-
-        .btn-endpoint:hover {
-            background: linear-gradient(135deg, #2557b8 0%, #1d4290 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(29, 66, 144, 0.4);
-            border-color: #6ab3e7;
-        }
-
-        .logo-placeholder {
-            margin-top: 40px;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .director-link-container {
-            margin-top: 18px;
-        }
+        .button-container .btn { width: 100%; padding: 15px; }
 
         .director-link {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #7a7a9a;
-            text-decoration: none;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid transparent;
-            transition: color 0.2s ease, border-color 0.2s ease;
+            font-size: 0.66rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-faint);
         }
 
-        .director-link:hover {
-            color: #4a1570;
-            border-bottom-color: #4a1570;
-        }
+        .director-link:hover { color: var(--accent); }
+
+        .logo-placeholder { margin-top: 32px; opacity: 0.5; }
+        .logo-placeholder img { max-width: 160px; max-height: 62px; object-fit: contain; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Simulation Timer System</h1>
-        <p>Select your role to continue</p>
+    <button class="icon-btn theme-corner" data-theme-toggle onclick="TimerApp.Theme.toggle()"></button>
+
+    <div class="container panel">
+        <h1>Simulation Timer</h1>
+        <p class="tagline">Select your role to continue</p>
+
         <div class="button-container">
-            <a href="/controller" class="btn btn-controller">Controller</a>
-            <a href="/endpoint" class="btn btn-endpoint">Endpoint Display</a>
+            <a href="/controller" class="btn btn-primary">Controller</a>
+            <a href="/endpoint" class="btn">Endpoint Display</a>
         </div>
-        <div class="director-link-container">
-            <a href="/director" class="director-link">Director View</a>
-        </div>
+
+        <a href="/director" class="director-link">Director View</a>
+
         <div class="logo-placeholder">
-            <img src="/logo.png" alt="Belmont Simulation" style="max-width: 200px; max-height: 80px; object-fit: contain;">
+            <img src="/logo.png" alt="Belmont Simulation">
         </div>
     </div>
+
+    <script>TimerApp.Theme.init();</script>
 </body>
 </html>

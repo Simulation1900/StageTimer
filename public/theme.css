@@ -1,0 +1,324 @@
+/* ============================================================
+   Belmont Simulation Timer — shared design language.
+
+   One quiet palette, one typeface, light and dark. Every page
+   links this file; nothing here is page-specific.
+
+   The theme is resolved to an explicit light/dark value by the
+   inline script in each page's <head> (before first paint), so
+   this file only ever needs :root and :root[data-theme="dark"].
+   ============================================================ */
+
+:root {
+    color-scheme: light;
+
+    --bg:            #f7f8fa;
+    --bg-2:          #eceff4;
+    --surface:       rgba(255, 255, 255, 0.62);
+    --surface-solid: #ffffff;
+    --border:        rgba(120, 135, 160, 0.18);
+    --border-strong: rgba(120, 135, 160, 0.34);
+
+    --text:          #55606f;
+    --text-dim:      #8592a8;
+    --text-faint:    #a8b2c2;
+
+    --accent:        #6e7d94;
+    --accent-strong: #4f6480;
+    --accent-wash:   rgba(110, 125, 148, 0.10);
+
+    --ok:            #6f8f79;
+    --warn:          #9a8b6d;
+    --crit:          #a3737a;
+
+    --shadow:        0 2px 18px rgba(60, 72, 92, 0.07);
+    --radius:        14px;
+    --font: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --bg:            #14171c;
+    --bg-2:          #0e1115;
+    --surface:       rgba(255, 255, 255, 0.045);
+    --surface-solid: #1b1f26;
+    --border:        rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.18);
+
+    --text:          #c3ccd9;
+    --text-dim:      #8b97a8;
+    --text-faint:    #5f6b7c;
+
+    --accent:        #8fa3bf;
+    --accent-strong: #a8bcd6;
+    --accent-wash:   rgba(143, 163, 191, 0.10);
+
+    --ok:            #83ab8e;
+    --warn:          #c4b083;
+    --crit:          #c98f97;
+
+    --shadow:        0 2px 18px rgba(0, 0, 0, 0.35);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font);
+    font-weight: 300;
+    background: linear-gradient(165deg, var(--bg) 0%, var(--bg-2) 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.5s ease, color 0.5s ease;
+}
+
+/* ── Typography ──────────────────────────────────────────────
+   No display face and no bold. Hierarchy comes from size,
+   letter-spacing and colour rather than weight. */
+
+h1, h2, h3 {
+    font-family: var(--font);
+    font-weight: 300;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+h1 { font-size: 1.15rem; }
+h2 { font-size: 1rem; }
+h3 { font-size: 0.78rem; letter-spacing: 2.5px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-strong); }
+
+/* Digits must not jitter as they tick. */
+.digits {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    font-weight: 200;
+    letter-spacing: 4px;
+}
+
+.digits.normal   { color: var(--accent); }
+.digits.warning  { color: var(--warn); }
+.digits.critical { color: var(--crit); animation: breathe 4s ease-in-out infinite; }
+
+/* A slow breath rather than a pulse — noticeable, not alarming. */
+@keyframes breathe {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.68; }
+}
+
+/* ── Surfaces ────────────────────────────────────────────── */
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+}
+
+/* ── Controls ────────────────────────────────────────────── */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: var(--font);
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 11px 18px;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn:hover {
+    color: var(--text);
+    background: var(--accent-wash);
+    border-color: var(--accent);
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.btn-primary {
+    background: var(--accent-wash);
+    border-color: var(--accent);
+    color: var(--accent-strong);
+}
+
+.btn-ok:hover   { color: var(--ok);   border-color: var(--ok); }
+.btn-warn:hover { color: var(--warn); border-color: var(--warn); }
+.btn-crit:hover { color: var(--crit); border-color: var(--crit); }
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+textarea {
+    width: 100%;
+    padding: 11px 13px;
+    font-family: var(--font);
+    font-size: 0.92rem;
+    font-weight: 300;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    color: var(--text);
+    transition: border-color 0.2s ease;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.68rem;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* ── Segmented control (mode / tab switching) ────────────── */
+
+.segmented {
+    display: inline-flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.segmented button {
+    font-family: var(--font);
+    font-size: 0.68rem;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 7px 15px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.segmented button:hover { color: var(--text-dim); }
+
+.segmented button.active {
+    background: var(--accent-wash);
+    color: var(--text);
+}
+
+/* ── Icon button (theme, fullscreen) ─────────────────────── */
+
+.icon-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-btn:hover { color: var(--text); border-color: var(--accent); }
+.icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+
+/* ── Connection badge ────────────────────────────────────────
+   Invisible while everything is fine. Slides in only when the
+   link to the server is in doubt, because a frozen display that
+   looks healthy is the worst failure mode for a live session. */
+
+.conn-badge {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translate(-50%, 20px);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 16px;
+    font-size: 0.68rem;
+    font-weight: 400;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--surface-solid);
+    border: 1px solid var(--border-strong);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.conn-badge.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.conn-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-faint);
+}
+
+.conn-badge.reconnecting .conn-dot { background: var(--warn); animation: breathe 1.6s ease-in-out infinite; }
+.conn-badge.offline      .conn-dot { background: var(--crit); }
+.conn-badge.restored     .conn-dot { background: var(--ok); }
+
+/* While the link is down the numbers on screen are stale — say so
+   visually so nobody trusts a frozen clock. */
+body.offline .stale-dim {
+    opacity: 0.35;
+    transition: opacity 0.6s ease;
+}
+
+/* ── Auto-hiding chrome ──────────────────────────────────── */
+
+.chrome {
+    transition: opacity 0.7s ease;
+}
+
+body.chrome-hidden .chrome {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── Motion preferences ──────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
