@@ -166,6 +166,69 @@
         #cornerBtn { display: none; }
         body.calm #cornerBtn { display: flex; }
 
+        /* ── Adrift ──────────────────────────────────────────────
+           The clock slips its corner and drifts around the screen,
+           taking a new colour off every wall it touches. */
+        .stage { user-select: none; -webkit-user-select: none; }
+
+        body.bounce .stage {
+            inset: 0 auto auto 0;
+            align-items: center;
+            transition: none;
+            will-change: transform;
+        }
+
+        body.bounce .timer-display {
+            color: var(--bounce-color, var(--accent));
+            opacity: 0.92;
+            transition: color 0.6s ease;
+        }
+
+        body.bounce .timer-name {
+            color: var(--bounce-color, var(--text-faint));
+            opacity: 0.6;
+            transition: color 0.6s ease;
+        }
+
+        /* A transformed ancestor would capture a fixed-position child,
+           so the message rides along with the clock instead. */
+        body.bounce .message-display {
+            position: static;
+            transform: none;
+            margin-top: 0.7rem;
+            max-width: min(58vw, 520px);
+            font-size: 1rem;
+        }
+
+        .corner-flash {
+            position: fixed;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, var(--accent-wash) 0%, transparent 62%);
+        }
+
+        .corner-flash.show { animation: cornerHit 2.8s ease-in-out; }
+
+        .corner-flash span {
+            font-size: 0.66rem;
+            font-weight: 300;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        @keyframes cornerHit {
+            0%   { opacity: 0; }
+            18%  { opacity: 1; }
+            70%  { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
         /* ── Blackout ────────────────────────────────────────── */
         .blackout {
             position: fixed;
@@ -245,6 +308,8 @@
         <div class="message-display" id="messageDisplay"></div>
     </div>
 
+    <div class="corner-flash" id="cornerFlash"><span>Corner</span></div>
+
     <div class="hint chrome">
         <a href="/">Home</a>
         <span><kbd>F</kbd> fullscreen</span>
@@ -289,10 +354,11 @@
         if (!CORNERS.includes(corner)) corner = 'br';
 
         function setMode(next) {
+            if (next === 'focus' && bouncing) stopDrift();
             mode = next;
             write(STORE_MODE, next);
             document.body.classList.toggle('calm', next === 'calm');
-            document.body.setAttribute('data-corner', corner);
+            if (!bouncing) document.body.setAttribute('data-corner', corner);
             document.getElementById('mode-focus').classList.toggle('active', next === 'focus');
             document.getElementById('mode-calm').classList.toggle('active', next === 'calm');
             syncUrl();
@@ -301,7 +367,7 @@
         function cycleCorner() {
             corner = CORNERS[(CORNERS.indexOf(corner) + 1) % CORNERS.length];
             write(STORE_CORNER, corner);
-            document.body.setAttribute('data-corner', corner);
+            if (!bouncing) document.body.setAttribute('data-corner', corner);
         }
 
         function syncUrl() {
@@ -454,6 +520,7 @@
             if (document.hidden) return;
 
             tick();
+            if (bouncing) stepDrift(ts);
 
             if (mode !== 'calm') return;
 
@@ -470,6 +537,104 @@
             drawWaves(ts);
         }
 
+        /* ── Easter egg: set the clock adrift ────────────────────
+           Triple-click anywhere that isn't a control and the clock
+           leaves its corner to wander the screen, taking a new colour
+           off every wall — and making a quiet event of the rare true
+           corner hit. Calm mode comes on first, since this only makes
+           any sense over the waves. Triple-click again, or press
+           Escape, to settle it. Deliberately not persisted: it should
+           never survive into a real session by accident. */
+        const stage = document.getElementById('stage');
+        const cornerFlash = document.getElementById('cornerFlash');
+
+        const DRIFT_SPEED = 78;      // px per second — a drift, not a bounce
+        let bouncing = false;
+        let bx = 0, by = 0, vx = 0, vy = 0;
+        let hue = 210;
+        let driftTs = 0;
+        let cornerHits = Number(read('timer.corners', '0')) || 0;
+
+        function paintDrift() {
+            const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+            stage.style.setProperty('--bounce-color', `hsl(${Math.round(hue)}, 24%, ${dark ? 68 : 50}%)`);
+        }
+
+        function startDrift() {
+            // Note where it is sitting before the layout changes under us.
+            const box = mode === 'calm' ? stage.getBoundingClientRect() : null;
+            if (mode !== 'calm') setMode('calm');
+
+            bouncing = true;
+            document.body.classList.add('bounce');
+            document.body.removeAttribute('data-corner');
+
+            const maxX = Math.max(0, window.innerWidth - stage.offsetWidth);
+            const maxY = Math.max(0, window.innerHeight - stage.offsetHeight);
+            bx = box ? Math.min(Math.max(box.left, 0), maxX) : maxX / 2;
+            by = box ? Math.min(Math.max(box.top, 0), maxY) : maxY / 2;
+
+            // Keep it off the axes, or it just slides along one edge.
+            const angle = (0.35 + Math.random() * 0.3) * Math.PI / 2;
+            vx = Math.cos(angle) * DRIFT_SPEED * (Math.random() < 0.5 ? -1 : 1);
+            vy = Math.sin(angle) * DRIFT_SPEED * (Math.random() < 0.5 ? -1 : 1);
+
+            driftTs = 0;
+            paintDrift();
+        }
+
+        function stopDrift() {
+            bouncing = false;
+            document.body.classList.remove('bounce');
+            document.body.setAttribute('data-corner', corner);
+            stage.style.transform = '';
+            stage.style.removeProperty('--bounce-color');
+        }
+
+        function markCorner() {
+            cornerHits++;
+            write('timer.corners', String(cornerHits));
+            cornerFlash.querySelector('span').textContent =
+                cornerHits === 1 ? 'Corner' : 'Corner · ' + cornerHits;
+            cornerFlash.classList.remove('show');
+            void cornerFlash.offsetWidth;      // force reflow to restart the fade
+            cornerFlash.classList.add('show');
+        }
+
+        function stepDrift(ts) {
+            // Clamp dt so a backgrounded tab does not teleport the clock.
+            const dt = driftTs ? Math.min((ts - driftTs) / 1000, 0.05) : 0;
+            driftTs = ts;
+
+            const maxX = Math.max(0, window.innerWidth - stage.offsetWidth);
+            const maxY = Math.max(0, window.innerHeight - stage.offsetHeight);
+
+            bx += vx * dt;
+            by += vy * dt;
+
+            let hitX = false, hitY = false;
+            if (bx <= 0)         { bx = 0;    vx = Math.abs(vx);  hitX = true; }
+            else if (bx >= maxX) { bx = maxX; vx = -Math.abs(vx); hitX = true; }
+            if (by <= 0)         { by = 0;    vy = Math.abs(vy);  hitY = true; }
+            else if (by >= maxY) { by = maxY; vy = -Math.abs(vy); hitY = true; }
+
+            // Both walls on the same frame is the one everyone waits for.
+            if (hitX && hitY) markCorner();
+            if (hitX || hitY) {
+                hue = (hue + 47 + Math.random() * 26) % 360;
+                paintDrift();
+            }
+
+            stage.style.transform = `translate3d(${bx}px, ${by}px, 0)`;
+        }
+
+        /* detail === 3 is the browser's own triple-click counter. */
+        document.addEventListener('click', (e) => {
+            if (e.detail !== 3) return;
+            if (e.target.closest('button, a, input, .header, .hint')) return;
+            bouncing ? stopDrift() : startDrift();
+        });
+
         /* ── Keyboard ────────────────────────────────────────── */
         window.addEventListener('keydown', (e) => {
             if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -478,6 +643,7 @@
             else if (key === 'c') setMode(mode === 'calm' ? 'focus' : 'calm');
             else if (key === 'd') Theme.toggle();
             else if (key === 'p') cycleCorner();
+            else if (key === 'escape' && bouncing) stopDrift();
             else if (['1', '2', '3'].includes(key)) selectTimer('timer-' + key);
         });
 
