@@ -147,7 +147,9 @@
         body.calm .timer-display.warning  { opacity: 0.8; }
         body.calm .timer-display.critical { opacity: 1; }
 
-        body.calm .progress-container { opacity: 0; height: 0; }
+        /* Taken out of the layout rather than just hidden: at 70vw wide a
+           zero-height bar still sets the width of the whole stage box. */
+        body.calm .progress-container { display: none; }
 
         body.calm .message-display {
             position: fixed;
