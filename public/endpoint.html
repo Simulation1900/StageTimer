@@ -378,10 +378,10 @@
         function modeHeld() { return remoteMode !== 'auto'; }
 
         /* A local request. Refused, and reported as refused, while held. */
-        function setMode(next) {
+        function setMode(next, persist) {
             if (modeHeld()) return false;
             mode = next;
-            write(STORE_MODE, next);
+            if (persist !== false) write(STORE_MODE, next);
             applyMode();
             return true;
         }
@@ -431,7 +431,9 @@
                 document.getElementById('tab-' + id).classList.toggle('active', id === timerId);
             });
             syncUrl();
+            wasRunning = timerRunning();
             render();
+            armIdleDrift();
         }
 
         /* ── Wiring ──────────────────────────────────────────── */
@@ -460,6 +462,8 @@
 
         let lastClock = null;
         let lastLevel = null;
+        let wasRunning = false;
+        let driftReason = null;      // 'gesture' | 'idle'
 
         /* Everything that only moves when the server says so. */
         function render() {
@@ -484,6 +488,17 @@
             }
 
             el.blackout.classList.toggle('active', state.isBlackedOut);
+
+            /* Starting a timer is the signal that the room is in use again. */
+            if (state.isRunning !== wasRunning) {
+                wasRunning = state.isRunning;
+                if (state.isRunning) {
+                    settleIdleDrift();
+                    clearTimeout(idleTimer);
+                } else {
+                    armIdleDrift();
+                }
+            }
         }
 
         /* Runs on every frame, so it touches the DOM only on a real change.
@@ -613,12 +628,17 @@
             stage.style.setProperty('--bounce-color', `hsl(${Math.round(hue)}, 24%, ${dark ? 68 : 50}%)`);
         }
 
-        function startDrift() {
+        function startDrift(reason) {
             // Note where it is sitting before the layout changes under us.
             const wasCalm = effectiveMode() === 'calm';
             const box = wasCalm ? stage.getBoundingClientRect() : null;
-            if (!wasCalm && !setMode('calm')) return flashHeld('View set by controller');
+            if (!wasCalm && !setMode('calm', reason !== 'idle')) {
+                // An idle room has nobody to read the message.
+                if (reason !== 'idle') flashHeld('View set by controller');
+                return;
+            }
 
+            driftReason = reason || 'gesture';
             bouncing = true;
             document.body.classList.add('bounce');
             document.body.removeAttribute('data-corner');
@@ -639,6 +659,7 @@
 
         function stopDrift() {
             bouncing = false;
+            driftReason = null;
             document.body.classList.remove('bounce');
             document.body.setAttribute('data-corner', corner);
             stage.style.transform = '';
@@ -691,6 +712,49 @@
             cornerFlash.classList.add('show');   // the animation fades itself out
         }
 
+        /* ── Idle drift ──────────────────────────────────────────
+           A room nobody is using has nothing worth showing. After half an
+           hour with no one touching the screen and no timer running, the
+           clock is set adrift. It goes back to exactly the view it left
+           the moment a timer starts from the controller, or anyone
+           touches the screen. The triple-tap drift is a deliberate act,
+           so it is never dismissed this way. */
+        const IDLE_MS = 30 * 60 * 1000;
+        let idleTimer = null;
+        let restoreMode = null;
+
+        function timerRunning() {
+            const state = store.states[activeTimerId];
+            return !!(state && state.isRunning);
+        }
+
+        function armIdleDrift() {
+            clearTimeout(idleTimer);
+            if (bouncing || timerRunning()) return;
+            idleTimer = setTimeout(() => {
+                if (bouncing || timerRunning()) return;
+                restoreMode = mode;
+                startDrift('idle');
+            }, IDLE_MS);
+        }
+
+        /* Put back the view that was up before the screen was left alone. */
+        function settleIdleDrift() {
+            if (!bouncing || driftReason !== 'idle') return;
+            stopDrift();
+            if (restoreMode !== null) setMode(restoreMode, false);
+            restoreMode = null;
+        }
+
+        function wake() {
+            settleIdleDrift();
+            armIdleDrift();
+        }
+
+        ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel'].forEach((evt) => {
+            window.addEventListener(evt, wake, { passive: true });
+        });
+
         /* Counting the taps here rather than trusting event.detail, which
            touchscreens report inconsistently — and these are touchscreens.
            Taps have to land near each other, so a wander around the screen
@@ -731,6 +795,7 @@
         /* ── Go ──────────────────────────────────────────────── */
         resize();
         applyMode();
+        armIdleDrift();
         shownLevel = store.fractionLeft(activeTimerId);
         requestAnimationFrame(frame);
     </script>
