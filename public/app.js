@@ -127,7 +127,7 @@
                 totalSeconds: 0, remainingMs: 0, endsAt: null, isRunning: false,
                 timerName: id.replace('timer-', 'Timer '),
                 message: { text: '', color: 'black' }, isBlackedOut: false,
-                displayTheme: 'auto'
+                displayTheme: 'auto', displayMode: 'auto'
             };
         });
 

@@ -389,6 +389,16 @@
                 </div>
 
                 <div class="theme-control">
+                    <label>Display Mode</label>
+                    <div class="segmented" id="displayMode">
+                        <button id="dmode-auto" class="active" onclick="setDisplayMode('auto')">Auto</button>
+                        <button id="dmode-focus" onclick="setDisplayMode('focus')">Focus</button>
+                        <button id="dmode-calm" onclick="setDisplayMode('calm')">Calm</button>
+                    </div>
+                    <div class="control-note" id="displayModeNote">Each display keeps its own view.</div>
+                </div>
+
+                <div class="theme-control">
                     <label>Display Theme</label>
                     <div class="segmented" id="displayTheme">
                         <button id="dtheme-auto" class="active" onclick="setDisplayTheme('auto')">Auto</button>
@@ -509,6 +519,7 @@
 
             document.getElementById('blackoutToggle').checked = state.isBlackedOut;
             renderDisplayTheme(state.displayTheme || 'auto');
+            renderDisplayMode(state.displayMode || 'auto');
 
             const nameField = document.getElementById('timerName');
             if (document.activeElement !== nameField) nameField.value = state.timerName;
@@ -536,6 +547,21 @@
                 document.getElementById('dtheme-' + t).classList.toggle('active', t === theme);
             });
             document.getElementById('displayThemeNote').textContent = THEME_NOTES[theme];
+        }
+
+        const DISPLAY_MODES = ['auto', 'focus', 'calm'];
+
+        const MODE_NOTES = {
+            auto:  'Each display keeps its own view.',
+            focus: 'Every display on this timer is held on the clock.',
+            calm:  'Every display on this timer is held on the ambient view.'
+        };
+
+        function renderDisplayMode(mode) {
+            DISPLAY_MODES.forEach((m) => {
+                document.getElementById('dmode-' + m).classList.toggle('active', m === mode);
+            });
+            document.getElementById('displayModeNote').textContent = MODE_NOTES[mode];
         }
 
         function updateTabIndicator(timerId) {
@@ -587,6 +613,10 @@
            this controller — the operator keeps their own theme. */
         function setDisplayTheme(theme) {
             socket.emit('setDisplayTheme', { timerId: activeTimerId, theme });
+        }
+
+        function setDisplayMode(mode) {
+            socket.emit('setDisplayMode', { timerId: activeTimerId, mode });
         }
 
         function toggleBlackout() {

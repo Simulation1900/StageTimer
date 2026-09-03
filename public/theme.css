@@ -226,6 +226,10 @@ label {
 
 .segmented button:hover { color: var(--text-dim); }
 
+/* Held by the controller: still legible, plainly not yours to press. */
+.segmented button:disabled { opacity: 0.4; cursor: not-allowed; }
+.segmented button:disabled:hover { color: var(--text-faint); }
+
 .segmented button.active {
     background: var(--accent-wash);
     color: var(--text);

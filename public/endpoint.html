@@ -367,14 +367,46 @@
         let corner = read(STORE_CORNER, 'br');
         if (!CORNERS.includes(corner)) corner = 'br';
 
+        /* 'auto' unless the controller is holding this timer's displays on
+           one view, in which case that outranks the local choice. */
+        let remoteMode = 'auto';
+
+        function effectiveMode() {
+            return remoteMode === 'auto' ? mode : remoteMode;
+        }
+
+        function modeHeld() { return remoteMode !== 'auto'; }
+
+        /* A local request. Refused, and reported as refused, while held. */
         function setMode(next) {
-            if (next === 'focus' && bouncing) stopDrift();
+            if (modeHeld()) return false;
             mode = next;
             write(STORE_MODE, next);
-            document.body.classList.toggle('calm', next === 'calm');
+            applyMode();
+            return true;
+        }
+
+        function setRemoteMode(next) {
+            const value = (next === 'focus' || next === 'calm') ? next : 'auto';
+            if (value === remoteMode) return;
+            remoteMode = value;
+            applyMode();
+        }
+
+        function applyMode() {
+            const active = effectiveMode();
+            if (active === 'focus' && bouncing) stopDrift();
+            document.body.classList.toggle('calm', active === 'calm');
             if (!bouncing) document.body.setAttribute('data-corner', corner);
-            document.getElementById('mode-focus').classList.toggle('active', next === 'focus');
-            document.getElementById('mode-calm').classList.toggle('active', next === 'calm');
+
+            const held = modeHeld();
+            ['focus', 'calm'].forEach((m) => {
+                const btn = document.getElementById('mode-' + m);
+                btn.classList.toggle('active', m === active);
+                btn.disabled = held;
+                btn.title = held ? 'View set by the controller (' + remoteMode + ')' : '';
+            });
+
             syncUrl();
         }
 
@@ -387,7 +419,7 @@
         function syncUrl() {
             const url = new URL(location.href);
             url.searchParams.set('timer', activeTimerId.replace('timer-', ''));
-            url.searchParams.set('mode', mode);
+            url.searchParams.set('mode', effectiveMode());
             history.replaceState({}, '', url);
         }
 
@@ -440,6 +472,7 @@
                'auto' hands it back to whatever this browser prefers. */
             Theme.setRemote(state.displayTheme);
             write(heldKey(activeTimerId), state.displayTheme || 'auto');
+            setRemoteMode(state.displayMode);
 
             tick();
 
@@ -542,7 +575,7 @@
             tick();
             if (bouncing) stepDrift(ts);
 
-            if (mode !== 'calm') return;
+            if (effectiveMode() !== 'calm') return;
 
             // Ease the level and the colour so both changes read as drift.
             const target = store.fractionLeft(activeTimerId);
@@ -582,8 +615,9 @@
 
         function startDrift() {
             // Note where it is sitting before the layout changes under us.
-            const box = mode === 'calm' ? stage.getBoundingClientRect() : null;
-            if (mode !== 'calm') setMode('calm');
+            const wasCalm = effectiveMode() === 'calm';
+            const box = wasCalm ? stage.getBoundingClientRect() : null;
+            if (!wasCalm && !setMode('calm')) return flashHeld('View set by controller');
 
             bouncing = true;
             document.body.classList.add('bounce');
@@ -650,17 +684,33 @@
 
         /* Pressing D on a display the controller is holding should say so
            rather than do nothing. Reuses the corner flash. */
-        function flashLocked() {
-            cornerFlash.querySelector('span').textContent = 'Theme set by controller';
+        function flashHeld(message) {
+            cornerFlash.querySelector('span').textContent = message;
             cornerFlash.classList.remove('show');
             void cornerFlash.offsetWidth;
             cornerFlash.classList.add('show');   // the animation fades itself out
         }
 
-        /* detail === 3 is the browser's own triple-click counter. */
+        /* Counting the taps here rather than trusting event.detail, which
+           touchscreens report inconsistently — and these are touchscreens.
+           Taps have to land near each other, so a wander around the screen
+           never adds up to the gesture. */
+        const TAP_WINDOW_MS = 600;
+        let taps = 0, tapTimer = null, tapX = 0, tapY = 0;
+
         document.addEventListener('click', (e) => {
-            if (e.detail !== 3) return;
             if (e.target.closest('button, a, input, .header, .hint')) return;
+
+            if (Math.abs(e.clientX - tapX) > 60 || Math.abs(e.clientY - tapY) > 60) taps = 0;
+            tapX = e.clientX;
+            tapY = e.clientY;
+
+            taps++;
+            clearTimeout(tapTimer);
+            tapTimer = setTimeout(() => { taps = 0; }, TAP_WINDOW_MS);
+            if (taps < 3) return;
+
+            taps = 0;
             bouncing ? stopDrift() : startDrift();
         });
 
@@ -669,8 +719,8 @@
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             const key = e.key.toLowerCase();
             if (key === 'f') Fullscreen.toggle();
-            else if (key === 'c') setMode(mode === 'calm' ? 'focus' : 'calm');
-            else if (key === 'd') { if (!Theme.toggle()) flashLocked(); }
+            else if (key === 'c') { if (!setMode(mode === 'calm' ? 'focus' : 'calm')) flashHeld('View set by controller'); }
+            else if (key === 'd') { if (!Theme.toggle()) flashHeld('Theme set by controller'); }
             else if (key === 'p') cycleCorner();
             else if (key === 'escape' && bouncing) stopDrift();
             else if (['1', '2', '3'].includes(key)) selectTimer('timer-' + key);
@@ -680,7 +730,7 @@
 
         /* ── Go ──────────────────────────────────────────────── */
         resize();
-        setMode(mode);
+        applyMode();
         shownLevel = store.fractionLeft(activeTimerId);
         requestAnimationFrame(frame);
     </script>

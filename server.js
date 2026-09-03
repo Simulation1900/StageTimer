@@ -26,9 +26,10 @@ function createTimerState(name) {
     timerName: name,
     message: { text: '', color: 'black' },
     isBlackedOut: false,
-    /* 'auto' leaves each display on its own preference; 'light' or
-       'dark' is imposed on every display watching this timer. */
-    displayTheme: 'auto'
+    /* 'auto' leaves each display on its own preference; the other
+       values are imposed on every display watching this timer. */
+    displayTheme: 'auto',
+    displayMode: 'auto'
   };
 }
 
@@ -61,6 +62,7 @@ function snapshot(timerId) {
     message: t.message,
     isBlackedOut: t.isBlackedOut,
     displayTheme: t.displayTheme,
+    displayMode: t.displayMode,
     serverNow: Date.now()
   };
 }
@@ -225,6 +227,15 @@ io.on('connection', (socket) => {
     if (!TIMER_IDS.includes(timerId)) return;
     if (!['auto', 'light', 'dark'].includes(theme)) return;
     timers[timerId].displayTheme = theme;
+    broadcast(timerId);
+  });
+
+  /* Focus or calm for every display on this timer, so a room can be
+     settled into the ambient view without walking to each machine. */
+  socket.on('setDisplayMode', ({ timerId, mode }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    if (!['auto', 'focus', 'calm'].includes(mode)) return;
+    timers[timerId].displayMode = mode;
     broadcast(timerId);
   });
 
