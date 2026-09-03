@@ -3,7 +3,26 @@
     "allow": [
       "Bash(git init:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Simulation Timer application\n\n- Real-time synchronized timer with WebSocket support\n- Password-protected controller interface (Belmont1900!)\n- Endpoint display with progress bar and color warnings\n- Modern white futuristic design with glassmorphism\n- Custom messages in black, red, or green\n- Blackout mode functionality\n- Belmont Simulation branding and logo integration\n- Azure deployment configuration\n- GitHub Actions workflow for CI/CD\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(az account:*)",
+      "Bash(az group create:*)",
+      "Bash(az appservice plan create:*)",
+      "Bash(az webapp list:*)",
+      "Bash(az webapp create:*)",
+      "Bash(az webapp list-runtimes:*)",
+      "Bash(az appservice plan show:*)",
+      "Bash(az webapp config appsettings set:*)",
+      "Bash(az webapp config set:*)",
+      "Bash(git commit:*)",
+      "Bash(gh secret:*)",
+      "Bash(gh auth login:*)",
+      "Bash(az webapp show:*)",
+      "Bash(timeout 30 az webapp log tail:*)",
+      "Bash(curl:*)",
+      "Bash(az webapp:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
