@@ -9,12 +9,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/theme.css">
     <script>
-        /* Stamp the theme before first paint so there is no flash. */
+        /* Stamp the theme before first paint so there is no flash. A theme
+           the controller set for this timer is remembered from the last
+           session, so a display that reloads mid-scenario comes back in the
+           right theme rather than flashing white in a darkened room. */
         (function () {
             try {
-                var forced = new URLSearchParams(location.search).get('theme');
+                var q = new URLSearchParams(location.search);
+                var n = q.get('timer');
+                var id = (n === '1' || n === '2' || n === '3') ? 'timer-' + n : 'timer-1';
+                var held = localStorage.getItem('timer.display.' + id);
+                var forced = q.get('theme');
                 var saved = localStorage.getItem('timer.theme');
-                var t = (forced === 'dark' || forced === 'light') ? forced
+                var t = (held === 'dark' || held === 'light') ? held
+                      : (forced === 'dark' || forced === 'light') ? forced
                       : (saved === 'dark' || saved === 'light') ? saved
                       : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                 document.documentElement.setAttribute('data-theme', t);
@@ -323,8 +331,6 @@
         const { Theme, Fullscreen, formatClock, createStore, mountConnection,
                 keepAwake, autoHideChrome, prefersReducedMotion } = TimerApp;
 
-        Theme.init();
-
         const socket = io();
         const store = createStore(socket);
         mountConnection(socket);
@@ -336,6 +342,12 @@
         /* ── Which timer ─────────────────────────────────────── */
         const timerParam = params.get('timer');
         let activeTimerId = ['1', '2', '3'].includes(timerParam) ? `timer-${timerParam}` : 'timer-1';
+
+        /* Seed from the remembered controller theme, then let init() resolve
+           the rest; the server's word replaces this the moment it arrives. */
+        const heldKey = (id) => 'timer.display.' + id;
+        Theme.setRemote(read(heldKey(activeTimerId), 'auto'));
+        Theme.init();
 
         /* ── Mode and clock corner, remembered per browser ───── */
         const STORE_MODE = 'timer.mode';
@@ -423,6 +435,12 @@
             if (!state) return;
 
             el.name.textContent = state.timerName;
+
+            /* The controller can hold this display in light or dark;
+               'auto' hands it back to whatever this browser prefers. */
+            Theme.setRemote(state.displayTheme);
+            write(heldKey(activeTimerId), state.displayTheme || 'auto');
+
             tick();
 
             if (state.message.text) {
@@ -630,6 +648,15 @@
             stage.style.transform = `translate3d(${bx}px, ${by}px, 0)`;
         }
 
+        /* Pressing D on a display the controller is holding should say so
+           rather than do nothing. Reuses the corner flash. */
+        function flashLocked() {
+            cornerFlash.querySelector('span').textContent = 'Theme set by controller';
+            cornerFlash.classList.remove('show');
+            void cornerFlash.offsetWidth;
+            cornerFlash.classList.add('show');   // the animation fades itself out
+        }
+
         /* detail === 3 is the browser's own triple-click counter. */
         document.addEventListener('click', (e) => {
             if (e.detail !== 3) return;
@@ -643,7 +670,7 @@
             const key = e.key.toLowerCase();
             if (key === 'f') Fullscreen.toggle();
             else if (key === 'c') setMode(mode === 'calm' ? 'focus' : 'calm');
-            else if (key === 'd') Theme.toggle();
+            else if (key === 'd') { if (!Theme.toggle()) flashLocked(); }
             else if (key === 'p') cycleCorner();
             else if (key === 'escape' && bouncing) stopDrift();
             else if (['1', '2', '3'].includes(key)) selectTimer('timer-' + key);

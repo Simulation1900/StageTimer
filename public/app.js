@@ -20,16 +20,36 @@
     const Theme = {
         KEY: 'timer.theme',
 
+        /* A display can be handed its theme by the controller. While that
+           holds it outranks anything this browser has chosen, and the local
+           toggle stands down; 'auto' gives the browser its preference back. */
+        remote: 'auto',
+
+        // A ?theme= on the URL, which outranks this browser's own preference.
+        urlForced: null,
+
         stored() {
             try { return localStorage.getItem(Theme.KEY); } catch (e) { return null; }
         },
 
         resolve() {
+            if (Theme.remote === 'dark' || Theme.remote === 'light') return Theme.remote;
+            if (Theme.urlForced) return Theme.urlForced;
             const saved = Theme.stored();
             if (saved === 'dark' || saved === 'light') return saved;
             return global.matchMedia && global.matchMedia('(prefers-color-scheme: dark)').matches
                 ? 'dark' : 'light';
         },
+
+        /* Whatever the server says this timer's displays should use. */
+        setRemote(theme) {
+            const next = (theme === 'dark' || theme === 'light') ? theme : 'auto';
+            if (next === Theme.remote) return;
+            Theme.remote = next;
+            Theme.apply(Theme.resolve(), false);
+        },
+
+        locked() { return Theme.remote !== 'auto'; },
 
         current() {
             return document.documentElement.getAttribute('data-theme') || Theme.resolve();
@@ -44,31 +64,40 @@
         },
 
         toggle() {
+            if (Theme.locked()) return false;
+            Theme.urlForced = null;   // an explicit choice retires the URL's
             Theme.apply(Theme.current() === 'dark' ? 'light' : 'dark');
+            return true;
         },
 
         /* Show the theme you would switch *to*, which is the convention
            people already read correctly without a label. */
         paintToggle(btn) {
             const dark = Theme.current() === 'dark';
+            const locked = Theme.locked();
+            btn.disabled = locked;
+            btn.classList.toggle('locked', locked);
             btn.innerHTML = dark
                 ? '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>'
                 : '<svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>';
-            btn.setAttribute('title', dark ? 'Switch to light' : 'Switch to dark');
+            btn.setAttribute('title', locked
+                ? 'Theme set by the controller (' + Theme.remote + ')'
+                : (dark ? 'Switch to light' : 'Switch to dark'));
             btn.setAttribute('aria-label', btn.getAttribute('title'));
         },
 
         init() {
             const params = new URLSearchParams(global.location.search);
             const forced = params.get('theme');
+            if (forced === 'dark' || forced === 'light') Theme.urlForced = forced;
             // Only an explicit toggle writes a preference; a page view never does.
-            Theme.apply(forced === 'dark' || forced === 'light' ? forced : Theme.resolve(), false);
+            Theme.apply(Theme.resolve(), false);
 
             // Follow the OS only while the user has made no explicit choice.
             if (!Theme.stored() && global.matchMedia) {
-                global.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-                    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-                    document.querySelectorAll('[data-theme-toggle]').forEach(Theme.paintToggle);
+                global.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                    // resolve() already defers to a controller-set theme.
+                    Theme.apply(Theme.resolve(), false);
                 });
             }
         }
@@ -97,7 +126,8 @@
             states[id] = {
                 totalSeconds: 0, remainingMs: 0, endsAt: null, isRunning: false,
                 timerName: id.replace('timer-', 'Timer '),
-                message: { text: '', color: 'black' }, isBlackedOut: false
+                message: { text: '', color: 'black' }, isBlackedOut: false,
+                displayTheme: 'auto'
             };
         });
 

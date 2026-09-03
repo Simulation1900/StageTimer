@@ -25,7 +25,10 @@ function createTimerState(name) {
     isRunning: false,
     timerName: name,
     message: { text: '', color: 'black' },
-    isBlackedOut: false
+    isBlackedOut: false,
+    /* 'auto' leaves each display on its own preference; 'light' or
+       'dark' is imposed on every display watching this timer. */
+    displayTheme: 'auto'
   };
 }
 
@@ -57,6 +60,7 @@ function snapshot(timerId) {
     timerName: t.timerName,
     message: t.message,
     isBlackedOut: t.isBlackedOut,
+    displayTheme: t.displayTheme,
     serverNow: Date.now()
   };
 }
@@ -212,6 +216,15 @@ io.on('connection', (socket) => {
   socket.on('toggleBlackout', ({ timerId, isBlackedOut }) => {
     if (!TIMER_IDS.includes(timerId)) return;
     timers[timerId].isBlackedOut = isBlackedOut;
+    broadcast(timerId);
+  });
+
+  /* Light or dark for every display on this timer at once, so a room
+     can be dimmed for a night scenario from one place. */
+  socket.on('setDisplayTheme', ({ timerId, theme }) => {
+    if (!TIMER_IDS.includes(timerId)) return;
+    if (!['auto', 'light', 'dark'].includes(theme)) return;
+    timers[timerId].displayTheme = theme;
     broadcast(timerId);
   });
 

@@ -210,6 +210,18 @@
         #timeRemaining.warning  { color: var(--warn); }
         #timeRemaining.critical { color: var(--crit); }
 
+        /* Light or dark for every display on this timer. */
+        .theme-control { margin-top: 18px; }
+        .theme-control .segmented { display: flex; width: 100%; }
+        .theme-control .segmented button { flex: 1; }
+
+        .control-note {
+            margin-top: 8px;
+            font-size: 0.66rem;
+            letter-spacing: 0.5px;
+            color: var(--text-faint);
+        }
+
         .toggle-control {
             display: flex;
             justify-content: space-between;
@@ -376,6 +388,16 @@
                     </div>
                 </div>
 
+                <div class="theme-control">
+                    <label>Display Theme</label>
+                    <div class="segmented" id="displayTheme">
+                        <button id="dtheme-auto" class="active" onclick="setDisplayTheme('auto')">Auto</button>
+                        <button id="dtheme-light" onclick="setDisplayTheme('light')">Light</button>
+                        <button id="dtheme-dark" onclick="setDisplayTheme('dark')">Dark</button>
+                    </div>
+                    <div class="control-note" id="displayThemeNote">Each display follows its own preference.</div>
+                </div>
+
                 <div class="toggle-control">
                     <label for="blackoutToggle">Blackout Screen</label>
                     <label class="toggle-switch">
@@ -486,6 +508,7 @@
             remaining.className = 'status-value digits ' + store.level(activeTimerId);
 
             document.getElementById('blackoutToggle').checked = state.isBlackedOut;
+            renderDisplayTheme(state.displayTheme || 'auto');
 
             const nameField = document.getElementById('timerName');
             if (document.activeElement !== nameField) nameField.value = state.timerName;
@@ -498,6 +521,21 @@
                 preview.textContent = 'No message';
                 preview.style.color = 'var(--text-faint)';
             }
+        }
+
+        const DISPLAY_THEMES = ['auto', 'light', 'dark'];
+
+        const THEME_NOTES = {
+            auto:  'Each display follows its own preference.',
+            light: 'Every display on this timer is held in light.',
+            dark:  'Every display on this timer is held in dark.'
+        };
+
+        function renderDisplayTheme(theme) {
+            DISPLAY_THEMES.forEach((t) => {
+                document.getElementById('dtheme-' + t).classList.toggle('active', t === theme);
+            });
+            document.getElementById('displayThemeNote').textContent = THEME_NOTES[theme];
         }
 
         function updateTabIndicator(timerId) {
@@ -543,6 +581,12 @@
         function clearMessage() {
             document.getElementById('messageText').value = '';
             socket.emit('clearMessage', { timerId: activeTimerId });
+        }
+
+        /* Applies to every endpoint watching the active timer, not to
+           this controller — the operator keeps their own theme. */
+        function setDisplayTheme(theme) {
+            socket.emit('setDisplayTheme', { timerId: activeTimerId, theme });
         }
 
         function toggleBlackout() {

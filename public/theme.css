@@ -248,6 +248,17 @@ label {
 }
 
 .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+/* A display whose theme the controller is holding: the button stays
+   visible, so it is obvious the choice was made elsewhere. */
+.icon-btn:disabled,
+.icon-btn.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.icon-btn:disabled:hover,
+.icon-btn.locked:hover { color: var(--text-faint); border-color: var(--border); }
 .icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 
 /* ── Connection badge ────────────────────────────────────────
