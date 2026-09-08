@@ -463,6 +463,7 @@
         let lastClock = null;
         let lastLevel = null;
         let wasRunning = false;
+        let wasBlackedOut = false;
         let driftReason = null;      // 'gesture' | 'idle'
 
         /* Everything that only moves when the server says so. */
@@ -488,6 +489,20 @@
             }
 
             el.blackout.classList.toggle('active', state.isBlackedOut);
+
+            /* Blackout going up settles any drift already under way and
+               stops the countdown to the next one; lifting it starts that
+               countdown again, as though the screen had just been left
+               alone. */
+            if (state.isBlackedOut !== wasBlackedOut) {
+                wasBlackedOut = state.isBlackedOut;
+                if (state.isBlackedOut) {
+                    settleIdleDrift();
+                    clearTimeout(idleTimer);
+                } else {
+                    armIdleDrift();
+                }
+            }
 
             /* Starting a timer is the signal that the room is in use again. */
             if (state.isRunning !== wasRunning) {
@@ -713,13 +728,19 @@
         }
 
         /* ── Idle drift ──────────────────────────────────────────
-           A room nobody is using has nothing worth showing. After half an
-           hour with no one touching the screen and no timer running, the
-           clock is set adrift. It goes back to exactly the view it left
-           the moment a timer starts from the controller, or anyone
+           A room nobody is using has nothing worth showing. After five
+           minutes with no one touching the screen and no timer running,
+           the clock is set adrift. It goes back to exactly the view it
+           left the moment a timer starts from the controller, or anyone
            touches the screen. The triple-tap drift is a deliberate act,
-           so it is never dismissed this way. */
-        const IDLE_MS = 30 * 60 * 1000;
+           so it is never dismissed this way.
+
+           A blacked-out screen is exempt. Blackout is deliberate — the
+           controller asked for nothing to be shown — and the screen is
+           already dark, so there is nothing for drifting to improve. It
+           would only mean the clock reappearing somewhere unexpected
+           when the blackout is lifted. */
+        const IDLE_MS = 5 * 60 * 1000;
         let idleTimer = null;
         let restoreMode = null;
 
@@ -728,11 +749,18 @@
             return !!(state && state.isRunning);
         }
 
+        function blackedOut() {
+            const state = store.states[activeTimerId];
+            return !!(state && state.isBlackedOut);
+        }
+
         function armIdleDrift() {
             clearTimeout(idleTimer);
-            if (bouncing || timerRunning()) return;
+            if (bouncing || timerRunning() || blackedOut()) return;
             idleTimer = setTimeout(() => {
-                if (bouncing || timerRunning()) return;
+                /* Checked again on firing: five minutes is long enough for
+                   any of these to have become true since. */
+                if (bouncing || timerRunning() || blackedOut()) return;
                 restoreMode = mode;
                 startDrift('idle');
             }, IDLE_MS);
