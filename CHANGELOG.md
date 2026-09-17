@@ -9,6 +9,40 @@ not the shape of the code.
 
 ---
 
+## 2026-09-17 — Timers you can add, and a controller that signs in
+
+### Added
+- **Timers can be added and removed from the controller**, up to nine. Which
+  timers exist, and what rooms call them, is kept on disk now — so a name
+  survives a restart, which it never did before, and the list survives a
+  deploy because it lives outside the folder a deploy replaces. Five are
+  permanent. One that was added, never named, never used and has nobody
+  watching it is tidied away after a day; naming a timer keeps it, because a
+  name is what tells an accident from a room assignment.
+- **The controller signs in with a BUCIES HUB account.** Displays and the
+  director stay open to anyone: a wall panel has to survive everything, and a
+  read-only board of clocks shows nothing that is not already on nine walls.
+  This service never handles a password — signing in happens at the hub, which
+  sends the person back with a single-use code. That also keeps every
+  controller in the building out of the account service's per-address failure
+  throttle, which they would otherwise have shared.
+- **Pages notice when the server is serving newer ones**, and reload
+  themselves: the controller and the director at once, a display only once its
+  timer is stopped and no blackout or message is up, so a room never sees the
+  clock blink mid-session. The fingerprint is of the pages' content rather than
+  the moment the server started, because this app has no Always On and is
+  stopped and started all day.
+- An emergency password for the controller, offered only after signing in has
+  actually failed, lasting four hours and written to the log when used.
+
+### Fixed
+- **The controller password was only ever checked in the browser.** The server
+  told the page whether the password was right and then accepted commands from
+  any client that asked, so the gate was decoration. Commands now require an
+  account, checked on the server, on every connection including reconnections.
+- The Belmont mark was navy ink on a transparent ground and all but vanished
+  against a dark page.
+
 ## 2026-09-17 — Five timers
 
 ### Added
