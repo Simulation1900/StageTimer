@@ -9,6 +9,28 @@ not the shape of the code.
 
 ---
 
+## 2026-09-17 — Five timers
+
+### Added
+- **Two more timers.** Five rooms can now be timed at once rather than three.
+  Timers 4 and 5 behave exactly as the others do, each with its own name,
+  message, display theme and mode, and its own hue on the controller so you
+  always know which one you are holding. A display reaches them the same way:
+  the tabs along the top, the number keys, or `?timer=4` in the address.
+
+## 2026-09-08 — A blacked-out screen stays put
+
+### Changed
+- **Blackout now suppresses the idle drift.** Blacking out a display is an
+  instruction to show nothing, and the screen is already dark, so there is
+  nothing for drifting to improve — all it did was move the clock somewhere
+  unexpected while nobody could see it, which is where it reappeared when the
+  blackout lifted. Raising the blackout also settles a drift already under way.
+- **The idle wait is five minutes, down from thirty.** Half an hour was long
+  enough that a room could sit finished and lit for most of a session first.
+  It still takes both no touch and no timer running. A triple-tap drift is
+  unaffected: it is deliberate, and only a deliberate act dismisses it.
+
 ## 2026-09-03 — Controlling the displays from the controller
 
 ### Added

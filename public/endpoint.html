@@ -17,7 +17,10 @@
             try {
                 var q = new URLSearchParams(location.search);
                 var n = q.get('timer');
-                var id = (n === '1' || n === '2' || n === '3') ? 'timer-' + n : 'timer-1';
+                /* Runs before app.js, so the list is not available yet: any
+                   plain number is taken, and an id that does not exist simply
+                   has no remembered theme. */
+                var id = /^[0-9]+$/.test(n || '') ? 'timer-' + n : 'timer-1';
                 var held = localStorage.getItem('timer.display.' + id);
                 var forced = q.get('theme');
                 var saved = localStorage.getItem('timer.theme');
@@ -287,11 +290,8 @@
     <div class="blackout" id="blackout"></div>
 
     <div class="header chrome">
-        <div class="segmented" id="timerTabs">
-            <button id="tab-timer-1" class="active" onclick="selectTimer('timer-1')">Timer 1</button>
-            <button id="tab-timer-2" onclick="selectTimer('timer-2')">Timer 2</button>
-            <button id="tab-timer-3" onclick="selectTimer('timer-3')">Timer 3</button>
-        </div>
+        <!-- Filled from the timer list on load. -->
+        <div class="segmented" id="timerTabs"></div>
 
         <div class="header-group">
             <div class="segmented" id="modeSwitch">
@@ -333,6 +333,9 @@
 
         const socket = io();
         const store = createStore(socket);
+
+        document.getElementById('timerTabs').innerHTML = store.ids.map((id, i) => `
+            <button id="tab-${id}"${i === 0 ? ' class="active"' : ''} onclick="selectTimer('${id}')">Timer ${i + 1}</button>`).join('');
         mountConnection(socket);
         keepAwake();
         autoHideChrome(4000);
@@ -341,7 +344,7 @@
 
         /* ── Which timer ─────────────────────────────────────── */
         const timerParam = params.get('timer');
-        let activeTimerId = ['1', '2', '3'].includes(timerParam) ? `timer-${timerParam}` : 'timer-1';
+        let activeTimerId = store.ids.includes(`timer-${timerParam}`) ? `timer-${timerParam}` : 'timer-1';
 
         /* Seed from the remembered controller theme, then let init() resolve
            the rest; the server's word replaces this the moment it arrives. */
@@ -815,7 +818,7 @@
             else if (key === 'd') { if (!Theme.toggle()) flashHeld('Theme set by controller'); }
             else if (key === 'p') cycleCorner();
             else if (key === 'escape' && bouncing) stopDrift();
-            else if (['1', '2', '3'].includes(key)) selectTimer('timer-' + key);
+            else if (store.ids.includes('timer-' + key)) selectTimer('timer-' + key);
         });
 
         window.addEventListener('resize', resize);

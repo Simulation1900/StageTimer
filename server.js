@@ -11,7 +11,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
-const TIMER_IDS = ['timer-1', 'timer-2', 'timer-3'];
+/* How many rooms can be timed at once. The ids and their state are derived
+   from this, so adding another is a matter of changing the number — and the
+   matching one in public/app.js, which is what the pages draw their tabs
+   from. Everything else here already works from the list. */
+const TIMER_COUNT = 5;
+const TIMER_IDS = Array.from({ length: TIMER_COUNT }, (_, i) => `timer-${i + 1}`);
 
 /* A running timer is stored as the wall-clock instant it ends, not as a
    decrementing counter. Nothing accumulates error, a missed tick costs
@@ -33,11 +38,9 @@ function createTimerState(name) {
   };
 }
 
-const timers = {
-  'timer-1': createTimerState('Timer 1'),
-  'timer-2': createTimerState('Timer 2'),
-  'timer-3': createTimerState('Timer 3')
-};
+const timers = Object.fromEntries(
+  TIMER_IDS.map((id, i) => [id, createTimerState(`Timer ${i + 1}`)])
+);
 
 function remainingMs(timer) {
   if (timer.isRunning && timer.endsAt != null) {

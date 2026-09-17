@@ -11,7 +11,11 @@
 (function (global) {
     'use strict';
 
-    const TIMER_IDS = ['timer-1', 'timer-2', 'timer-3'];
+    /* Must match TIMER_COUNT in server.js. The pages build their tab bars
+       from this list rather than spelling the tabs out in markup, so the
+       number is the only thing that changes. */
+    const TIMER_COUNT = 5;
+    const TIMER_IDS = Array.from({ length: TIMER_COUNT }, (_, i) => `timer-${i + 1}`);
 
     /* ── Theme ───────────────────────────────────────────────
        resolve() is also inlined into each page's <head> so the
@@ -286,6 +290,7 @@
 
     global.TimerApp = {
         TIMER_IDS,
+        TIMER_COUNT,
         Theme,
         Fullscreen,
         formatClock,

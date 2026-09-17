@@ -33,11 +33,23 @@
         [data-timer="timer-3"] {
             --accent: #6f8f88; --accent-strong: #54726c; --accent-wash: rgba(111, 143, 136, 0.10);
         }
+        [data-timer="timer-4"] {
+            --accent: #9a8b6d; --accent-strong: #7b6e54; --accent-wash: rgba(154, 139, 109, 0.10);
+        }
+        [data-timer="timer-5"] {
+            --accent: #82749d; --accent-strong: #665a7d; --accent-wash: rgba(130, 116, 157, 0.10);
+        }
         :root[data-theme="dark"] [data-timer="timer-2"] {
             --accent: #bd949e; --accent-strong: #d4b0b8; --accent-wash: rgba(189, 148, 158, 0.10);
         }
         :root[data-theme="dark"] [data-timer="timer-3"] {
             --accent: #8fb0a8; --accent-strong: #a9c8c1; --accent-wash: rgba(143, 176, 168, 0.10);
+        }
+        :root[data-theme="dark"] [data-timer="timer-4"] {
+            --accent: #c4b083; --accent-strong: #d6c79f; --accent-wash: rgba(196, 176, 131, 0.10);
+        }
+        :root[data-theme="dark"] [data-timer="timer-5"] {
+            --accent: #a495c0; --accent-strong: #bcb0d2; --accent-wash: rgba(164, 149, 192, 0.10);
         }
 
         /* ── Auth ────────────────────────────────────────────── */
@@ -103,6 +115,8 @@
         #tab-timer-1.active { border-bottom-color: #6e7d94; }
         #tab-timer-2.active { border-bottom-color: #9a7480; }
         #tab-timer-3.active { border-bottom-color: #6f8f88; }
+        #tab-timer-4.active { border-bottom-color: #9a8b6d; }
+        #tab-timer-5.active { border-bottom-color: #82749d; }
 
         .tab-label {
             font-size: 0.64rem;
@@ -316,20 +330,9 @@
             </div>
         </div>
 
-        <div class="tab-bar panel">
-            <button class="tab-btn active" id="tab-timer-1" onclick="switchTab('timer-1')">
-                <span>Timer 1<span class="tab-dot" id="dot-timer-1"></span></span>
-                <span class="tab-label" id="tablabel-timer-1">Timer 1</span>
-            </button>
-            <button class="tab-btn" id="tab-timer-2" onclick="switchTab('timer-2')">
-                <span>Timer 2<span class="tab-dot" id="dot-timer-2"></span></span>
-                <span class="tab-label" id="tablabel-timer-2">Timer 2</span>
-            </button>
-            <button class="tab-btn" id="tab-timer-3" onclick="switchTab('timer-3')">
-                <span>Timer 3<span class="tab-dot" id="dot-timer-3"></span></span>
-                <span class="tab-label" id="tablabel-timer-3">Timer 3</span>
-            </button>
-        </div>
+        <!-- Filled from the timer list on load, so the number of timers is
+             settled in one place rather than in markup. -->
+        <div class="tab-bar panel" id="timerTabs"></div>
 
         <div class="control-grid">
             <div class="control-panel panel">
@@ -459,6 +462,14 @@
 
         const socket = io();
         const store = createStore(socket);
+
+        /* The tabs, one per timer. Built before anything reaches for them:
+           the update handler and switchTab both address these by id. */
+        document.getElementById('timerTabs').innerHTML = store.ids.map((id, i) => `
+            <button class="tab-btn${i === 0 ? ' active' : ''}" id="tab-${id}" onclick="switchTab('${id}')">
+                <span>Timer ${i + 1}<span class="tab-dot" id="dot-${id}"></span></span>
+                <span class="tab-label" id="tablabel-${id}">Timer ${i + 1}</span>
+            </button>`).join('');
         mountConnection(socket);
 
         let isAuthenticated = false;
