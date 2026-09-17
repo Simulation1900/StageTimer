@@ -7,3 +7,6 @@ npm-debug.log
 .idea/
 publish-profile.xml
 .claude/
+
+# Runtime timer list (see docs/dynamic-timers.md); lives in /home/data on Azure
+/data/

@@ -11,11 +11,11 @@
 (function (global) {
     'use strict';
 
-    /* Must match TIMER_COUNT in server.js. The pages build their tab bars
-       from this list rather than spelling the tabs out in markup, so the
-       number is the only thing that changes. */
-    const TIMER_COUNT = 5;
-    const TIMER_IDS = Array.from({ length: TIMER_COUNT }, (_, i) => `timer-${i + 1}`);
+    /* Which timers exist is the server's business — an operator can add and
+       remove them — so this is only what to assume until the first message
+       arrives, which is the permanent set. */
+    const BASE_COUNT = 5;
+    const TIMER_IDS = Array.from({ length: BASE_COUNT }, (_, i) => `timer-${i + 1}`);
 
     /* ── Theme ───────────────────────────────────────────────
        resolve() is also inlined into each page's <head> so the
@@ -126,17 +126,44 @@
 
     function createStore(socket) {
         const states = {};
-        TIMER_IDS.forEach((id) => {
-            states[id] = {
-                totalSeconds: 0, remainingMs: 0, endsAt: null, isRunning: false,
-                timerName: id.replace('timer-', 'Timer '),
-                message: { text: '', color: 'black' }, isBlackedOut: false,
-                displayTheme: 'auto', displayMode: 'auto'
-            };
+
+        /* The same array object for the life of the page: pages hold a
+           reference to it, so the set changing has to mean its contents
+           changing rather than a new array they never see. */
+        const ids = TIMER_IDS.slice();
+
+        const blankState = (id) => ({
+            totalSeconds: 0, remainingMs: 0, endsAt: null, isRunning: false,
+            timerName: id.replace('timer-', 'Timer '),
+            message: { text: '', color: 'black' }, isBlackedOut: false,
+            displayTheme: 'auto', displayMode: 'auto',
+            base: true, named: false, watchers: 0
         });
+
+        ids.forEach((id) => { states[id] = blankState(id); });
 
         let clockOffset = 0;   // serverNow - clientNow, in ms
         const listeners = [];
+        const setListeners = [];
+
+        const byNumber = (a, b) =>
+            Number(a.replace('timer-', '')) - Number(b.replace('timer-', ''));
+
+        /* Tab order should match the number keys, whatever order the server
+           happened to send. */
+        function adoptList(incoming) {
+            const next = incoming.slice().sort(byNumber);
+            if (next.join() === ids.join()) return false;
+
+            ids.length = 0;
+            next.forEach((id) => {
+                ids.push(id);
+                if (!states[id]) states[id] = blankState(id);
+            });
+
+            Object.keys(states).forEach((id) => { if (!next.includes(id)) delete states[id]; });
+            return true;
+        }
 
         function absorb(state) {
             if (typeof state.serverNow === 'number') {
@@ -149,9 +176,15 @@
             listeners.forEach((fn) => fn(timerId));
         }
 
+        /* The keys of this message are the list of timers — there is no
+           second message saying so, and therefore no question about which of
+           the two arrives first. */
         socket.on('allTimerStates', (all) => {
+            const changed = adoptList(Object.keys(all));
             Object.keys(all).forEach((id) => { states[id] = absorb(all[id]); });
-            TIMER_IDS.forEach(emitUpdate);
+
+            if (changed) setListeners.forEach((fn) => fn(ids.slice()));
+            ids.forEach(emitUpdate);
         });
 
         socket.on('timerState', ({ timerId, state }) => {
@@ -160,9 +193,15 @@
         });
 
         return {
-            ids: TIMER_IDS,
+            ids,
             states,
             socket,
+
+            /* Called when timers are added or removed, after the tabs have
+               been rebuilt by whoever is listening. */
+            onSetChanged(fn) { setListeners.push(fn); },
+
+            has(timerId) { return ids.includes(timerId); },
 
             /* The live figure, interpolated from endsAt against the
                server's clock. Falls back to the paused value. */
@@ -290,7 +329,6 @@
 
     global.TimerApp = {
         TIMER_IDS,
-        TIMER_COUNT,
         Theme,
         Fullscreen,
         formatClock,

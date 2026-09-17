@@ -52,6 +52,64 @@
             --accent: #a495c0; --accent-strong: #bcb0d2; --accent-wash: rgba(164, 149, 192, 0.10);
         }
 
+        .auth-note {
+            font-size: 0.78rem;
+            line-height: 1.6;
+            color: var(--text-dim);
+            margin-bottom: 18px;
+        }
+
+        .auth-note-warn { color: var(--warn); margin-top: 20px; }
+
+        .signed-in {
+            font-size: 0.62rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-faint);
+        }
+
+        .signed-in.warn { color: var(--warn); }
+
+        /* Not an icon: it needs its words on one line. */
+        #signOut {
+            width: auto;
+            padding: 0 12px;
+            white-space: nowrap;
+            font-size: 0.62rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .notice {
+            padding: 12px 16px;
+            margin-bottom: 14px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            border-left: 2px solid var(--accent);
+        }
+
+        /* The last tab: adding one more. */
+        .tab-add {
+            flex: 0 0 auto;
+            min-width: 46px;
+            font-size: 1rem;
+            color: var(--text-faint);
+        }
+
+        .tab-add:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        .btn-remove { color: var(--crit); }
+
+        /* A base timer is permanent, so it offers no way to remove itself. */
+        .controller-screen[data-base="true"] .btn-remove { display: none; }
+
+        /* The timer being held was removed. Nothing is switched behind the
+           operator's back — the controls simply stop until they choose. */
+        .controller-screen[data-missing="true"] .control-grid {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
         /* ── Auth ────────────────────────────────────────────── */
         .auth-screen {
             display: flex;
@@ -307,13 +365,29 @@
 <body>
     <div class="auth-screen" id="authScreen">
         <div class="auth-container panel">
-            <h2>Controller Access</h2>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Controller password">
-            </div>
-            <button class="btn btn-primary" onclick="authenticate()">Enter</button>
+            <h2>Timer Controller</h2>
+            <p class="auth-note">
+                Sign in with your BUCIES HUB account. Use your Belmont email —
+                this password may be different from your Belmont password.
+            </p>
+
+            <button class="btn btn-primary" id="hubSignIn">Sign in with BUCIES HUB</button>
             <div id="authError" class="error-message" style="display: none;"></div>
+
+            <!-- Only when signing in has actually failed. A password box sitting
+                 beside the button would simply be the one everyone keeps using,
+                 and the accounts would never be adopted. -->
+            <div id="emergencyBox" hidden>
+                <p class="auth-note auth-note-warn">
+                    Sign-in is unavailable. If a session is waiting, use the emergency password.
+                </p>
+                <div class="form-group">
+                    <label for="password">Emergency password</label>
+                    <input type="password" id="password" placeholder="Emergency password">
+                </div>
+                <button class="btn" id="emergencyEnter">Enter</button>
+            </div>
+
             <p style="margin-top: 22px;"><a href="/" class="back-link">Home</a></p>
         </div>
     </div>
@@ -325,10 +399,14 @@
                 <a href="/" class="back-link">Home</a>
             </div>
             <div class="header-group">
+                <span class="signed-in" id="signedInAs"></span>
+                <button class="icon-btn" id="signOut" title="Sign out">Sign out</button>
                 <button class="icon-btn" data-theme-toggle onclick="TimerApp.Theme.toggle()"></button>
                 <div class="logo-area"><img src="/logo.png" alt="Belmont Simulation"></div>
             </div>
         </div>
+
+        <p class="notice panel" id="controllerNotice" hidden></p>
 
         <!-- Filled from the timer list on load, so the number of timers is
              settled in one place rather than in markup. -->
@@ -343,6 +421,7 @@
                 </div>
                 <div class="form-group">
                     <button class="btn" onclick="updateTimerName()">Update Name</button>
+                    <button class="btn btn-remove" id="removeTimer" onclick="deleteActiveTimer()">Remove this timer</button>
                 </div>
 
                 <div class="duration-row" style="margin-top: 22px;">
@@ -460,58 +539,244 @@
 
         Theme.init();
 
-        const socket = io();
-        const store = createStore(socket);
-
-        /* The tabs, one per timer. Built before anything reaches for them:
-           the update handler and switchTab both address these by id. */
-        document.getElementById('timerTabs').innerHTML = store.ids.map((id, i) => `
-            <button class="tab-btn${i === 0 ? ' active' : ''}" id="tab-${id}" onclick="switchTab('${id}')">
-                <span>Timer ${i + 1}<span class="tab-dot" id="dot-${id}"></span></span>
-                <span class="tab-label" id="tablabel-${id}">Timer ${i + 1}</span>
-            </button>`).join('');
-        mountConnection(socket);
-
+        let socket = null;
+        let store = null;
         let isAuthenticated = false;
         let activeTimerId = 'timer-1';
+        let signedInVia = 'hub';
 
-        /* ── Auth ────────────────────────────────────────────── */
-        function authenticate() {
-            socket.emit('authenticate', document.getElementById('password').value);
+        const authScreen = document.getElementById('authScreen');
+        const controllerScreen = document.getElementById('controllerScreen');
+        const authError = document.getElementById('authError');
+
+        function showAuth(message, offerEmergency) {
+            authScreen.style.display = 'flex';
+            controllerScreen.style.display = 'none';
+            isAuthenticated = false;
+
+            if (message) {
+                authError.textContent = message;
+                authError.style.display = 'block';
+            } else {
+                authError.style.display = 'none';
+            }
+
+            if (offerEmergency) document.getElementById('emergencyBox').hidden = false;
         }
 
-        socket.on('authResult', (ok) => {
-            if (ok) {
-                isAuthenticated = true;
-                document.getElementById('authScreen').style.display = 'none';
-                document.getElementById('controllerScreen').style.display = 'block';
-                socket.emit('joinAll');
+        function showController(user, via) {
+            signedInVia = via || 'hub';
+            isAuthenticated = true;
+            authScreen.style.display = 'none';
+            controllerScreen.style.display = 'block';
+
+            const who = document.getElementById('signedInAs');
+            if (who) {
+                who.textContent = via === 'emergency'
+                    ? 'Signed in with the emergency password'
+                    : (user && (user.name || user.email)) || '';
+                who.classList.toggle('warn', via === 'emergency');
+            }
+
+            connect();
+        }
+
+        document.getElementById('hubSignIn').addEventListener('click', () => {
+            window.location.href = '/auth/hub-start';
+        });
+
+        async function useEmergency() {
+            const password = document.getElementById('password').value;
+            try {
+                const response = await fetch('/auth/emergency', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) return showAuth(data.error || 'That password is not right.', true);
+                showController(data.user, 'emergency');
+            } catch {
+                showAuth('Could not reach the timer server.', true);
+            }
+        }
+
+        document.getElementById('emergencyEnter').addEventListener('click', useEmergency);
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') useEmergency();
+        });
+
+        /* A code left in the address by the hub. Spent before anything else,
+           and stripped immediately so it does not sit in history. */
+        async function takeHandoff() {
+            const match = /[#&]handoff=([^&]+)/.exec(window.location.hash || '');
+            if (!match) return null;
+
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+
+            try {
+                const response = await fetch('/auth/handoff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: decodeURIComponent(match[1]) }),
+                });
+                const data = await response.json().catch(() => ({}));
+                return response.ok ? data : { error: data.error || 'That sign-in link has expired.' };
+            } catch {
+                return { error: 'Could not reach the timer server.' };
+            }
+        }
+
+        async function start() {
+            const handoff = await takeHandoff();
+            if (handoff && handoff.user) return showController(handoff.user, 'hub');
+
+            try {
+                const response = await fetch('/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    return showController(data.user, data.via);
+                }
+            } catch {
+                /* The timer server itself is unreachable; the emergency
+                   password will not help either, but say what happened. */
+                return showAuth('Could not reach the timer server.', false);
+            }
+
+            const options = await fetch('/auth/options').then((r) => r.json()).catch(() => ({}));
+            showAuth(handoff && handoff.error ? handoff.error : null, false);
+            if (options.emergency && handoff && handoff.error) {
+                document.getElementById('emergencyBox').hidden = false;
+            }
+        }
+
+        /* ── The connection ──────────────────────────────────────
+           Opened once there is a session. The cookie rides every handshake,
+           including reconnects, so an Azure recycle or a flaky network does
+           not quietly cost the operator their controls. */
+        function connect() {
+            if (socket) {
+                socket.connect();
+                return;
+            }
+
+            socket = io();
+            store = createStore(socket);
+            mountConnection(socket);
+
+            store.onUpdate((timerId) => {
+                updateTabIndicator(timerId);
+                if (timerId === activeTimerId && isAuthenticated) renderActiveTab();
+            });
+
+            store.onSetChanged(() => {
+                buildTabs();
                 renderActiveTab();
-            } else {
-                const err = document.getElementById('authError');
-                err.textContent = 'Invalid password. Please try again.';
-                err.style.display = 'block';
+            });
+
+            socket.on('connect', () => {
+                socket.emit('joinAll');
+                buildTabs();
+                renderActiveTab();
+            });
+
+            /* The server refusing a command is the one way an expired session
+               shows itself while the page is open. Put the sign-in screen back
+               rather than leaving buttons that quietly do nothing. */
+            socket.on('timerError', ({ message, needsSignIn }) => {
+                if (needsSignIn) {
+                    socket.disconnect();
+                    return showAuth('Your session has ended. Sign in to carry on.', false);
+                }
+                flash(message);
+            });
+        }
+
+        /* ── The tabs ────────────────────────────────────────────
+           Rebuilt whenever timers are added or removed. Built before anything
+           reaches for them: the update handler and switchTab address these
+           by id. */
+        function buildTabs() {
+            const ids = store ? store.ids : [];
+            const atLimit = ids.length >= 9;
+
+            document.getElementById('timerTabs').innerHTML = ids.map((id) => {
+                const n = id.replace('timer-', '');
+                const state = (store.states && store.states[id]) || {};
+                const name = state.timerName || `Timer ${n}`;
+                return `
+                <button class="tab-btn${id === activeTimerId ? ' active' : ''}" id="tab-${id}" onclick="switchTab('${id}')">
+                    <span>Timer ${n}<span class="tab-dot" id="dot-${id}"></span></span>
+                    <span class="tab-label" id="tablabel-${id}">${name}</span>
+                </button>`;
+            }).join('') + `
+                <button class="tab-btn tab-add" id="addTimer" ${atLimit ? 'disabled' : ''}
+                        title="${atLimit ? 'Nine timers is the limit' : 'Add a timer'}">+</button>`;
+
+            const add = document.getElementById('addTimer');
+            if (add && !atLimit) add.addEventListener('click', addTimer);
+
+            /* The timer being held has gone. Do not move the operator to a
+               different room's timer behind their back — a Space press meant
+               for room 4 would start room 1 mid-session. */
+            if (!store.has(activeTimerId)) disableForMissingTimer();
+        }
+
+        function disableForMissingTimer() {
+            const n = activeTimerId.replace('timer-', '');
+            controllerScreen.setAttribute('data-missing', 'true');
+            flash(`Timer ${n} was removed. Choose another tab.`);
+        }
+
+        function addTimer() {
+            if (!socket) return;
+            socket.emit('createTimer', {});
+        }
+
+        function deleteActiveTimer() {
+            const state = store.states[activeTimerId];
+            if (!state) return;
+
+            const watching = state.watchers
+                ? ` ${state.watchers} display${state.watchers === 1 ? '' : 's'} ${state.watchers === 1 ? 'is' : 'are'} watching it, and will show a notice.`
+                : '';
+
+            if (!window.confirm(`Remove "${state.timerName}"?${watching}`)) return;
+            socket.emit('deleteTimer', { timerId: activeTimerId });
+        }
+
+        function flash(message) {
+            const box = document.getElementById('controllerNotice');
+            if (!box) return;
+            box.textContent = message;
+            box.hidden = false;
+            clearTimeout(flash.timer);
+            flash.timer = setTimeout(() => { box.hidden = true; }, 6000);
+        }
+
+        document.getElementById('signOut').addEventListener('click', async () => {
+            try { await fetch('/auth/logout', { method: 'POST' }); } finally {
+                if (socket) socket.disconnect();
+                showAuth(null, false);
             }
         });
 
-        document.getElementById('password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') authenticate();
-        });
-
-        socket.on('connect', () => { if (isAuthenticated) socket.emit('joinAll'); });
-
-        /* ── Wiring ──────────────────────────────────────────── */
-        store.onUpdate((timerId) => {
-            updateTabIndicator(timerId);
-            if (timerId === activeTimerId && isAuthenticated) renderActiveTab();
-        });
+        start();
 
         function switchTab(timerId) {
             activeTimerId = timerId;
             store.ids.forEach((id) => {
-                document.getElementById('tab-' + id).classList.toggle('active', id === timerId);
+                const tab = document.getElementById('tab-' + id);
+                if (tab) tab.classList.toggle('active', id === timerId);
             });
-            document.getElementById('controllerScreen').setAttribute('data-timer', timerId);
+
+            const screen = document.getElementById('controllerScreen');
+            screen.setAttribute('data-timer', timerId);
+            screen.removeAttribute('data-missing');
+
+            const state = store.states[timerId];
+            screen.setAttribute('data-base', String(Boolean(state && state.base)));
+
             renderActiveTab();
         }
 
@@ -520,6 +785,9 @@
         function renderActiveTab() {
             const state = store.states[activeTimerId];
             if (!state) return;
+
+            const screen = document.getElementById('controllerScreen');
+            screen.setAttribute('data-base', String(Boolean(state.base)));
 
             document.getElementById('timerStatus').textContent = state.isRunning ? 'Running' : 'Stopped';
             document.getElementById('totalTime').textContent = formatClock(state.totalSeconds * 1000);

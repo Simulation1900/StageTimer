@@ -255,6 +255,23 @@
 
         .blackout.active { opacity: 1; pointer-events: auto; }
 
+        /* ── Not available ───────────────────────────────────── */
+        .holding { gap: 10px; }
+
+        .holding-note {
+            font-size: clamp(1.2rem, 3vw, 2.2rem);
+            font-weight: 300;
+            color: var(--text-dim);
+        }
+
+        .holding-help {
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            color: var(--text-faint);
+        }
+
+        body.holding-open .stage:not(.holding) { display: none; }
+
         /* ── Footer hint ─────────────────────────────────────── */
         .hint {
             position: fixed;
@@ -318,13 +335,22 @@
         <div class="message-display" id="messageDisplay"></div>
     </div>
 
+    <!-- Shown when this panel is pointed at a timer that is not there: not
+         yet loaded, or removed from the controller. Anything is better than
+         showing another room's clock on this room's wall. -->
+    <div class="stage holding" id="holding" hidden>
+        <div class="timer-name" id="holdingName">Timer</div>
+        <div class="holding-note" id="holdingNote">is not available.</div>
+        <div class="holding-help">Add it again from the controller, or press a number key.</div>
+    </div>
+
     <div class="corner-flash" id="cornerFlash"><span>Corner</span></div>
 
     <div class="hint chrome">
         <a href="/">Home</a>
         <span><kbd>F</kbd> fullscreen</span>
         <span><kbd>C</kbd> calm</span>
-        <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> timer</span>
+        <span id="timerKeysHint"></span>
     </div>
 
     <script>
@@ -334,8 +360,21 @@
         const socket = io();
         const store = createStore(socket);
 
-        document.getElementById('timerTabs').innerHTML = store.ids.map((id, i) => `
-            <button id="tab-${id}"${i === 0 ? ' class="active"' : ''} onclick="selectTimer('${id}')">Timer ${i + 1}</button>`).join('');
+        /* Past five, names stop fitting beside the mode switch and the
+           buttons, so the tabs become numbers; the name is on the stage
+           either way. */
+        function buildTabs() {
+            const short = store.ids.length > 5;
+            document.getElementById('timerTabs').innerHTML = store.ids.map((id) => {
+                const n = id.replace('timer-', '');
+                const state = store.states[id];
+                const label = short ? n : (state && state.timerName) || `Timer ${n}`;
+                return `<button id="tab-${id}" class="${id === activeTimerId ? 'active' : ''}" onclick="selectTimer('${id}')" title="${(state && state.timerName) || ''}">${label}</button>`;
+            }).join('');
+
+            document.getElementById('timerKeysHint').innerHTML =
+                store.ids.map((id) => `<kbd>${id.replace('timer-', '')}</kbd>`).join('') + ' timer';
+        }
         mountConnection(socket);
         keepAwake();
         autoHideChrome(4000);
@@ -344,7 +383,9 @@
 
         /* ── Which timer ─────────────────────────────────────── */
         const timerParam = params.get('timer');
-        let activeTimerId = store.ids.includes(`timer-${timerParam}`) ? `timer-${timerParam}` : 'timer-1';
+        let activeTimerId = /^[1-9]$/.test(timerParam || '') ? `timer-${timerParam}` : 'timer-1';
+
+        buildTabs();
 
         /* Seed from the remembered controller theme, then let init() resolve
            the rest; the server's word replaces this the moment it arrives. */
@@ -431,7 +472,8 @@
             activeTimerId = timerId;
             socket.emit('joinTimer', activeTimerId);
             store.ids.forEach((id) => {
-                document.getElementById('tab-' + id).classList.toggle('active', id === timerId);
+                const tab = document.getElementById('tab-' + id);
+                if (tab) tab.classList.toggle('active', id === timerId);
             });
             syncUrl();
             wasRunning = timerRunning();
@@ -441,6 +483,15 @@
 
         /* ── Wiring ──────────────────────────────────────────── */
         socket.on('connect', () => socket.emit('joinTimer', activeTimerId));
+
+        /* A timer added or removed. The tabs are rebuilt, and a panel whose
+           timer has just reappeared joins it again and carries on — which is
+           what makes "add it again from the controller" a real recovery. */
+        store.onSetChanged(() => {
+            buildTabs();
+            if (store.has(activeTimerId)) socket.emit('joinTimer', activeTimerId);
+            render();
+        });
 
         store.onUpdate((timerId) => {
             const btn = document.getElementById('tab-' + timerId);
@@ -469,10 +520,25 @@
         let wasBlackedOut = false;
         let driftReason = null;      // 'gesture' | 'idle'
 
+        /* The timer this panel wants does not exist — not arrived yet, or
+           removed. Say which one, and wait for it: if it comes back, the next
+           render picks it up by itself. */
+        function renderHolding() {
+            const n = activeTimerId.replace('timer-', '');
+            document.getElementById('holdingName').textContent = `Timer ${n}`;
+            document.getElementById('holdingNote').textContent = 'is not available.';
+            document.getElementById('holding').hidden = false;
+            document.body.classList.add('holding-open');
+            el.blackout.classList.remove('active');
+        }
+
         /* Everything that only moves when the server says so. */
         function render() {
             const state = store.states[activeTimerId];
-            if (!state) return;
+            if (!state) return renderHolding();
+
+            document.getElementById('holding').hidden = true;
+            document.body.classList.remove('holding-open');
 
             el.name.textContent = state.timerName;
 

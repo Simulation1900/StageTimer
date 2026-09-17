@@ -223,13 +223,15 @@
 
         const MESSAGE_COLORS = { black: 'var(--text)', red: 'var(--crit)', green: 'var(--ok)' };
 
-        /* Build the three cards from one template rather than three
-           near-identical copies of the same markup. */
+        /* One card per timer, from a single template rather than a set of
+           near-identical copies of the same markup. Timers can be added and
+           removed from the controller, so the cards follow the list rather
+           than being built once. */
         const grid = document.getElementById('timerGrid');
         const template = document.getElementById('cardTemplate');
         const cards = {};
 
-        store.ids.forEach((timerId) => {
+        function addCard(timerId) {
             const node = template.content.firstElementChild.cloneNode(true);
             grid.appendChild(node);
             cards[timerId] = {
@@ -241,7 +243,23 @@
                 message: node.querySelector('.card-message'),
                 blackout: node.querySelector('.card-blackout')
             };
-        });
+        }
+
+        function syncCards() {
+            store.ids.forEach((id) => { if (!cards[id]) addCard(id); });
+
+            Object.keys(cards).forEach((id) => {
+                if (store.has(id)) return;
+                cards[id].card.remove();
+                delete cards[id];
+            });
+
+            /* Keep them in number order however they were added. */
+            store.ids.forEach((id) => grid.appendChild(cards[id].card));
+        }
+
+        syncCards();
+        store.onSetChanged(syncCards);
 
         function renderCard(timerId) {
             const state = store.states[timerId];
