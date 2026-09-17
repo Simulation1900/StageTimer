@@ -535,7 +535,7 @@
     </div>
 
     <script>
-        const { Theme, formatClock, createStore, mountConnection } = TimerApp;
+        const { Theme, formatClock, createStore, mountConnection, onNewBuild } = TimerApp;
 
         Theme.init();
 
@@ -663,6 +663,10 @@
             socket = io();
             store = createStore(socket);
             mountConnection(socket);
+
+            /* Nothing here is worth keeping across a new build: what the
+               timers are doing lives on the server. */
+            onNewBuild(socket, (reload) => reload());
 
             store.onUpdate((timerId) => {
                 updateTabIndicator(timerId);

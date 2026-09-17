@@ -211,13 +211,14 @@
     </template>
 
     <script>
-        const { Theme, formatClock, createStore, mountConnection } = TimerApp;
+        const { Theme, formatClock, createStore, mountConnection, onNewBuild } = TimerApp;
 
         Theme.init();
 
         const socket = io();
         const store = createStore(socket);
         mountConnection(socket);
+        onNewBuild(socket, (reload) => reload());
 
         socket.on('connect', () => socket.emit('joinAll'));
 

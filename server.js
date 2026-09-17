@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+const fs = require('fs');
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
@@ -15,6 +17,29 @@ const HUB_URL = (process.env.HUB_URL || 'https://bucies.netlify.app').replace(/\
 
 app.use(express.json());
 app.use(express.static('public'));
+
+/* What the browser is running.
+ *
+ * A wall panel is opened once and left for weeks; nothing in a page reloads
+ * it, and a reconnecting socket does not fetch new code. Without this, a
+ * display keeps running whatever it loaded on the day somebody last touched
+ * it, and a deploy reaches it only when the machine is next restarted.
+ *
+ * So the pages are fingerprinted, and clients compare. Content rather than a
+ * timestamp or a random id per process: this app has no Always On, so it is
+ * stopped and started all day, and a restart must not look like a new build
+ * or every display in the centre would reload itself every twenty minutes. */
+const BUILD = (() => {
+  const hash = crypto.createHash('sha256');
+  for (const file of ['app.js', 'controller.html', 'endpoint.html', 'director.html', 'theme.css', 'index.html']) {
+    try {
+      hash.update(fs.readFileSync(path.join(__dirname, 'public', file)));
+    } catch {
+      /* A missing page is not a reason to refuse to start. */
+    }
+  }
+  return hash.digest('hex').slice(0, 12);
+})();
 
 /* A running timer is stored as the wall-clock instant it ends, not as a
    decrementing counter. Nothing accumulates error, a missed tick costs
@@ -272,7 +297,17 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
+  socket.emit('build', { id: BUILD });
   socket.emit('allTimerStates', allSnapshots());
+
+  /* The controller before this change signed in by asking here and waiting
+     for an answer. It has no idea about accounts, and its own screen ignores
+     whatever reason it is given — so this cannot rescue it, and only keeps
+     the server from looking dead while somebody reloads. */
+  socket.on('authenticate', () => {
+    console.log('[auth] a controller from before the sign-in change asked to authenticate');
+    socket.emit('authResult', false);
+  });
 
   const signedIn = () => Boolean(socket.data.user);
 

@@ -270,6 +270,28 @@
         return badge;
     }
 
+    /* ── Noticing a new build ────────────────────────────────
+       The server sends a fingerprint of the pages on every connection,
+       including reconnections. The first is what this page is running; a
+       different one later means the code on the server has moved on.
+
+       When to act on that is the page's business, which is why this hands
+       back a function rather than reloading: a controller may as well reload
+       at once, while a display showing a running clock must wait. */
+
+    function onNewBuild(socket, decide) {
+        let running = null;
+
+        socket.on('build', ({ id }) => {
+            if (!id) return;
+            if (running === null) { running = id; return; }
+            if (id === running) return;
+
+            running = id;   // only ask once per change
+            decide(() => global.location.reload());
+        });
+    }
+
     /* ── Screen wake lock ────────────────────────────────────
        Display machines otherwise sleep partway through a session.
        Needs https (or localhost); silently unavailable elsewhere. */
@@ -334,6 +356,7 @@
         formatClock,
         createStore,
         mountConnection,
+        onNewBuild,
         keepAwake,
         autoHideChrome,
         prefersReducedMotion

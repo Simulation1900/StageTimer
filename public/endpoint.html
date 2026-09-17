@@ -355,7 +355,7 @@
 
     <script>
         const { Theme, Fullscreen, formatClock, createStore, mountConnection,
-                keepAwake, autoHideChrome, prefersReducedMotion } = TimerApp;
+                keepAwake, autoHideChrome, prefersReducedMotion, onNewBuild } = TimerApp;
 
         const socket = io();
         const store = createStore(socket);
@@ -376,6 +376,28 @@
                 store.ids.map((id) => `<kbd>${id.replace('timer-', '')}</kbd>`).join('') + ' timer';
         }
         mountConnection(socket);
+
+        /* A new build, on a screen on a wall. This one does not reload the
+           moment it hears: a blink is nothing on a desk and everything in a
+           room where the clock is being watched. It waits for the timer to
+           stop, and for the blackout to lift — and if the room is quiet, that
+           is immediately. */
+        let pendingReload = null;
+
+        function reloadWhenNobodyIsWatching() {
+            if (!pendingReload) return;
+
+            const state = store.states[activeTimerId];
+            if (state && (state.isRunning || state.isBlackedOut)) return;
+            if (state && state.message && state.message.text) return;
+
+            pendingReload();
+        }
+
+        onNewBuild(socket, (reload) => {
+            pendingReload = reload;
+            reloadWhenNobodyIsWatching();
+        });
         keepAwake();
         autoHideChrome(4000);
 
@@ -496,7 +518,12 @@
         store.onUpdate((timerId) => {
             const btn = document.getElementById('tab-' + timerId);
             if (btn) btn.textContent = store.states[timerId].timerName;
-            if (timerId === activeTimerId) render();
+            if (timerId === activeTimerId) {
+                render();
+                /* A timer that has just stopped is the moment to take a new
+                   build, if one is waiting. */
+                reloadWhenNobodyIsWatching();
+            }
         });
 
         /* Discreet stand-ins for the controller's black / red / green. */
