@@ -330,6 +330,17 @@ body.chrome-hidden .chrome {
 
 /* ── Motion preferences ──────────────────────────────────── */
 
+/* ── The mark in the dark ────────────────────────────────────
+   Navy ink on a transparent ground, which all but disappears against a dark
+   page. Flattened to one light tone rather than inverted: inverting turns the
+   university's navy into a cream that belongs to nobody. The two-tone
+   waterfall is lost either way, and a legible monotone mark is better than an
+   accurate invisible one. */
+:root[data-theme="dark"] .logo-area img,
+:root[data-theme="dark"] .logo-placeholder img {
+    filter: brightness(0) invert(0.82);
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.001ms !important;
