@@ -80,6 +80,13 @@
             transition: opacity 0.6s ease;
         }
 
+        /* display: flex above outranks the browser's own rule for [hidden],
+           so without this the "not available" stage was never really hidden.
+           In focus mode it sat below the clock, out of sight; in calm mode
+           both stages are pinned to the same corner and it drew over the
+           running timer. */
+        .stage[hidden] { display: none; }
+
         .timer-name {
             font-size: 0.85rem;
             font-weight: 400;
@@ -733,13 +740,35 @@
         const DRIFT_SPEED = 78;      // px per second — a drift, not a bounce
         let bouncing = false;
         let bx = 0, by = 0, vx = 0, vy = 0;
-        let hue = 210;
+        /* The colours a wall hit moves through: Belmont's own, with a few
+           neighbours that sit with them — a deep teal, a slate violet, a
+           slate blue — and none of the amber or red-on-blue that mean
+           something else on this screen. Light ones read on white; dark
+           ones are lifted to read on Belmont Blue. Same length, same
+           order, so a theme change keeps its place in the cycle. */
+        const DRIFT_COLOURS = {
+            light: ['#001d54', '#2874af', '#862633', '#1f6f78', '#1d4289', '#b21029', '#5a4a8a', '#3d5a80'],
+            dark:  ['#6ab3e7', '#f5f5f5', '#e58a98', '#7fc8c4', '#a9c3f0', '#f0a3ae', '#c9b6e8', '#9fd6f5']
+        };
+        let driftColour = 0;
         let driftTs = 0;
         let cornerHits = Number(read('timer.corners', '0')) || 0;
 
         function paintDrift() {
             const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-            stage.style.setProperty('--bounce-color', `hsl(${Math.round(hue)}, 24%, ${dark ? 68 : 50}%)`);
+            const set = DRIFT_COLOURS[dark ? 'dark' : 'light'];
+            stage.style.setProperty('--bounce-color', set[driftColour % set.length]);
+        }
+
+        /* A theme change mid-drift swaps to the same colour's other-theme
+           version at once, rather than leaving a light-mode navy on blue
+           until the next wall. */
+        new MutationObserver(() => { if (bouncing) paintDrift(); })
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+        /* Onward one or two places, never back to the colour it just had. */
+        function nextDriftColour() {
+            driftColour = (driftColour + 1 + Math.floor(Math.random() * 2)) % DRIFT_COLOURS.light.length;
         }
 
         function startDrift(reason) {
@@ -810,7 +839,7 @@
             // Both walls on the same frame is the one everyone waits for.
             if (hitX && hitY) markCorner();
             if (hitX || hitY) {
-                hue = (hue + 47 + Math.random() * 26) % 360;
+                nextDriftColour();
                 paintDrift();
             }
 
