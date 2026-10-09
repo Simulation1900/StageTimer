@@ -26,30 +26,35 @@
         body { padding: 22px; }
 
         /* Each timer keeps a hue of its own so you always know which one
-           you are holding — muted to stay inside the same quiet palette. */
+           you are holding — taken from Belmont's blues and grays. The reds
+           are left out: here red means time is nearly up. Where a colour is
+           too pale to read as words (Sky Blue on white, Fountain Blue on
+           Belmont Blue) it marks the shapes and the words keep a darker
+           neighbour; dark mode uses a tint of Admissions Blue and of Dark
+           Gray for the same reason. */
         [data-timer="timer-2"] {
-            --accent: #9a7480; --accent-strong: #7d5b66; --accent-wash: rgba(154, 116, 128, 0.10);
+            --accent: #1d4289; --accent-strong: #1d4289; --accent-wash: rgba(29, 66, 137, 0.08);
         }
         [data-timer="timer-3"] {
-            --accent: #6f8f88; --accent-strong: #54726c; --accent-wash: rgba(111, 143, 136, 0.10);
+            --accent: #3d3d3d; --accent-strong: #3d3d3d; --accent-wash: rgba(61, 61, 61, 0.07);
         }
         [data-timer="timer-4"] {
-            --accent: #9a8b6d; --accent-strong: #7b6e54; --accent-wash: rgba(154, 139, 109, 0.10);
+            --accent: #001d54; --accent-strong: #001d54; --accent-wash: rgba(0, 29, 84, 0.07);
         }
         [data-timer="timer-5"] {
-            --accent: #82749d; --accent-strong: #665a7d; --accent-wash: rgba(130, 116, 157, 0.10);
+            --accent: #6ab3e7; --accent-strong: #2874af; --accent-wash: rgba(106, 179, 231, 0.14);
         }
         :root[data-theme="dark"] [data-timer="timer-2"] {
-            --accent: #bd949e; --accent-strong: #d4b0b8; --accent-wash: rgba(189, 148, 158, 0.10);
+            --accent: #a5b8e3; --accent-strong: #a5b8e3; --accent-wash: rgba(165, 184, 227, 0.12);
         }
         :root[data-theme="dark"] [data-timer="timer-3"] {
-            --accent: #8fb0a8; --accent-strong: #a9c8c1; --accent-wash: rgba(143, 176, 168, 0.10);
+            --accent: #c9c9c9; --accent-strong: #c9c9c9; --accent-wash: rgba(201, 201, 201, 0.11);
         }
         :root[data-theme="dark"] [data-timer="timer-4"] {
-            --accent: #c4b083; --accent-strong: #d6c79f; --accent-wash: rgba(196, 176, 131, 0.10);
+            --accent: #f5f5f5; --accent-strong: #f5f5f5; --accent-wash: rgba(245, 245, 245, 0.10);
         }
         :root[data-theme="dark"] [data-timer="timer-5"] {
-            --accent: #a495c0; --accent-strong: #bcb0d2; --accent-wash: rgba(164, 149, 192, 0.10);
+            --accent: #2874af; --accent-strong: #6ab3e7; --accent-wash: rgba(40, 116, 175, 0.22);
         }
 
         .auth-note {
@@ -59,7 +64,7 @@
             margin-bottom: 18px;
         }
 
-        .auth-note-warn { color: var(--warn); margin-top: 20px; }
+        .auth-note-warn { color: var(--warn-ink); margin-top: 20px; }
 
         .signed-in {
             font-size: 0.62rem;
@@ -68,7 +73,8 @@
             color: var(--text-faint);
         }
 
-        .signed-in.warn { color: var(--warn); }
+        .topbar .signed-in { color: var(--bar-ink-dim); }
+        .topbar .signed-in.warn { color: var(--warn-ink); }
 
         /* Not an icon: it needs its words on one line. */
         #signOut {
@@ -85,7 +91,7 @@
             margin-bottom: 14px;
             font-size: 0.8rem;
             color: var(--text-dim);
-            border-left: 2px solid var(--accent);
+            border-left: 2px solid var(--mark);
         }
 
         /* The last tab: adding one more. */
@@ -98,7 +104,7 @@
 
         .tab-add:disabled { opacity: 0.35; cursor: not-allowed; }
 
-        .btn-remove { color: var(--crit); }
+        .btn-remove { color: var(--crit-ink); }
 
         /* A base timer is permanent, so it offers no way to remove itself. */
         .controller-screen[data-base="true"] .btn-remove { display: none; }
@@ -170,11 +176,13 @@
         .tab-btn:hover { color: var(--text-dim); }
         .tab-btn.active { background: var(--accent-wash); color: var(--text); }
 
-        #tab-timer-1.active { border-bottom-color: #6e7d94; }
-        #tab-timer-2.active { border-bottom-color: #9a7480; }
-        #tab-timer-3.active { border-bottom-color: #6f8f88; }
-        #tab-timer-4.active { border-bottom-color: #9a8b6d; }
-        #tab-timer-5.active { border-bottom-color: #82749d; }
+        /* The tab being held is the timer the screen is set to, so its
+           hue is simply the accent — which follows light and dark. */
+        #tab-timer-1.active,
+        #tab-timer-2.active,
+        #tab-timer-3.active,
+        #tab-timer-4.active,
+        #tab-timer-5.active { border-bottom-color: var(--accent); }
 
         .tab-label {
             font-size: 0.64rem;
@@ -197,7 +205,7 @@
             transition: background 0.3s ease;
         }
 
-        .tab-dot.running { background: var(--ok); }
+        .tab-dot.running { background: var(--mark); }
 
         .control-grid {
             display: grid;
@@ -279,8 +287,11 @@
         }
 
         #timeRemaining { font-size: 1.6rem; font-weight: 200; letter-spacing: 2px; }
-        #timeRemaining.warning  { color: var(--warn); }
-        #timeRemaining.critical { color: var(--crit); }
+        /* Words, so the readable half of the timer's hue (they differ only
+           for the timer whose hue is Sky Blue). */
+        #timeRemaining.normal   { color: var(--accent-strong); }
+        #timeRemaining.warning  { color: var(--caution); }
+        #timeRemaining.critical { color: var(--crit-ink); text-shadow: var(--crit-glow); }
 
         /* Light or dark for every display on this timer. */
         .theme-control { margin-top: 18px; }
@@ -351,7 +362,14 @@
         .error-message {
             margin-top: 12px;
             font-size: 0.78rem;
-            color: var(--crit);
+            color: var(--crit-ink);
+        }
+
+        /* In the dark the words go Light Gray; a red rule keeps them an error. */
+        :root[data-theme="dark"] .error-message {
+            text-decoration: underline var(--belmont-red);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
         }
 
         .back-link { font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase; }
@@ -393,7 +411,7 @@
     </div>
 
     <div class="controller-screen" id="controllerScreen" data-timer="timer-1">
-        <div class="header panel">
+        <div class="header panel topbar">
             <div>
                 <h1>Timer Controller</h1>
                 <a href="/" class="back-link">Home</a>
@@ -784,7 +802,7 @@
             renderActiveTab();
         }
 
-        const MESSAGE_COLORS = { black: 'var(--text)', red: 'var(--crit)', green: 'var(--ok)' };
+        const MESSAGE_COLORS = { black: 'var(--text)', red: 'var(--crit-ink)', green: 'var(--ok-ink)' };
 
         function renderActiveTab() {
             const state = store.states[activeTimerId];
@@ -811,6 +829,7 @@
             if (state.message.text) {
                 preview.textContent = state.message.text;
                 preview.style.color = MESSAGE_COLORS[state.message.color] || 'var(--text)';
+                preview.dataset.tone = state.message.color || 'black';
             } else {
                 preview.textContent = 'No message';
                 preview.style.color = 'var(--text-faint)';

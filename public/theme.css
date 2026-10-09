@@ -9,29 +9,75 @@
    this file only ever needs :root and :root[data-theme="dark"].
    ============================================================ */
 
+/* Belmont University's digital palette — light on a white base with Belmont
+   Blue text and Belmont Blue as the accent; dark in about 70% Belmont Blue
+   with Belmont Red as the accent. Red also means trouble in both (errors,
+   the last seconds), since that is status rather than accent. Warnings are
+   amber across the suite — the one colour from outside the palette, because
+   a warning has to look unlike both the blues and the red.
+
+   Red is a shape on blue, never text: on Belmont Blue it is too dark to
+   read, so wherever red means something in words (an error, a red message,
+   the last seconds) dark mode writes it in Light Gray and lets a red shape
+   beside it carry the meaning.
+
+   --accent, --caution and --crit stay six-digit hex: the endpoint's waves
+   read them back out of the stylesheet as RGB. */
 :root {
     color-scheme: light;
 
-    --bg:            #f7f8fa;
-    --bg-2:          #eceff4;
-    --surface:       rgba(255, 255, 255, 0.62);
+    --belmont-blue:  #001d54;
+    --belmont-red:   #b21029;
+
+    --bg:            #ffffff;
+    --bg-2:          #f5f5f5;
+    --surface:       rgba(255, 255, 255, 0.86);
     --surface-solid: #ffffff;
-    --border:        rgba(120, 135, 160, 0.24);
-    --border-strong: rgba(120, 135, 160, 0.42);
+    --border:        rgba(0, 29, 84, 0.13);
+    --border-strong: rgba(0, 29, 84, 0.26);
 
-    --text:          #46505e;
-    --text-dim:      #647186;
-    --text-faint:    #8994a6;
+    --text:          #001d54;
+    --text-dim:      rgba(0, 29, 84, 0.78);
+    --text-faint:    #6b6b6b;
 
-    --accent:        #6e7d94;
-    --accent-strong: #4f6480;
-    --accent-wash:   rgba(110, 125, 148, 0.10);
+    /* Fountain Blue: Sky Blue is too pale to read on white. */
+    --accent:        #2874af;
+    --accent-strong: #2874af;
+    --accent-wash:   rgba(40, 116, 175, 0.08);
 
-    --ok:            #6f8f79;
-    --warn:          #9a8b6d;
-    --crit:          #a3737a;
+    /* The accent as a shape: a running dot, a rule, a tick. */
+    --mark:          #001d54;
 
-    --shadow:        0 2px 18px rgba(60, 72, 92, 0.07);
+    --ok:            #001d54;
+    --warn:          #754c00;
+    --crit:          #b21029;
+
+    /* The same, for when they are words rather than shapes. A green
+       message needs to differ from ordinary navy text, so it is Fountain. */
+    --ok-ink:        #2874af;
+    --warn-ink:      #754c00;
+    --crit-ink:      #b21029;
+    /* A soft red halo on the last seconds, so they differ from the amber
+       warning by more than hue — the two are the same lightness, and to
+       red-green colour blindness, with the breathing turned off, they
+       would otherwise look alike. */
+    --crit-glow:     0 0 0.2em rgba(178, 16, 41, 0.5), 0 0 0.55em rgba(178, 16, 41, 0.35);
+
+    /* The countdown's middle state: Fountain Blue, then amber, then red.
+       The countdown keeps Fountain Blue rather than the navy accent because
+       it is a signal before it is decoration. */
+    --caution:       #754c00;
+
+    /* The top bar: white, with Belmont Blue words over a Belmont Blue rule. */
+    --bar-bg:        #ffffff;
+    --bar-ink:       #001d54;
+    --bar-ink-dim:   rgba(0, 29, 84, 0.62);
+    --bar-line:      rgba(0, 29, 84, 0.26);
+    --bar-link:      #2874af;
+    --bar-wash:      rgba(0, 29, 84, 0.07);
+    --bar-rule:      #001d54;
+
+    --shadow:        0 1px 2px rgba(0, 29, 84, 0.05), 0 6px 20px rgba(0, 29, 84, 0.07);
     --radius:        14px;
     --font: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -39,24 +85,43 @@
 :root[data-theme="dark"] {
     color-scheme: dark;
 
-    --bg:            #14171c;
-    --bg-2:          #0e1115;
-    --surface:       rgba(255, 255, 255, 0.045);
-    --surface-solid: #1b1f26;
-    --border:        rgba(255, 255, 255, 0.12);
-    --border-strong: rgba(255, 255, 255, 0.24);
+    --bg:            #001d54;
+    --bg-2:          #00153f;
+    --surface:       rgba(255, 255, 255, 0.055);
+    --surface-solid: #0a2a66;
+    --border:        rgba(106, 179, 231, 0.20);
+    --border-strong: rgba(106, 179, 231, 0.40);
 
-    --text:          #cfd6e0;
-    --text-dim:      #9aa5b5;
-    --text-faint:    #6d798a;
+    --text:          #f5f5f5;
+    --text-dim:      rgba(245, 245, 245, 0.80);
+    --text-faint:    rgba(245, 245, 245, 0.58);
 
-    --accent:        #8fa3bf;
-    --accent-strong: #a8bcd6;
-    --accent-wash:   rgba(143, 163, 191, 0.10);
+    --accent:        #6ab3e7;
+    --accent-strong: #6ab3e7;
+    --accent-wash:   rgba(106, 179, 231, 0.12);
 
-    --ok:            #83ab8e;
-    --warn:          #c4b083;
-    --crit:          #c98f97;
+    --mark:          #b21029;
+
+    --ok:            #6ab3e7;
+    --warn:          #f2b84b;
+    --crit:          #b21029;
+
+    --ok-ink:        #6ab3e7;
+    --warn-ink:      #f2b84b;
+    --crit-ink:      #f5f5f5;
+    /* The red marker on Light Gray digits in the last seconds — a halo is
+       a shape, so it can be red here where the numbers cannot. */
+    --crit-glow:     0 0 0.1em #b21029, 0 0 0.3em rgba(178, 16, 41, 0.9), 0 0 0.7em rgba(178, 16, 41, 0.6);
+
+    --caution:       #f2b84b;
+
+    --bar-bg:        rgba(255, 255, 255, 0.055);
+    --bar-ink:       #f5f5f5;
+    --bar-ink-dim:   rgba(245, 245, 245, 0.66);
+    --bar-line:      rgba(106, 179, 231, 0.40);
+    --bar-link:      #6ab3e7;
+    --bar-wash:      rgba(106, 179, 231, 0.14);
+    --bar-rule:      #b21029;
 
     --shadow:        0 2px 18px rgba(0, 0, 0, 0.35);
 }
@@ -106,8 +171,8 @@ a:hover { color: var(--accent-strong); }
 }
 
 .digits.normal   { color: var(--accent); }
-.digits.warning  { color: var(--warn); }
-.digits.critical { color: var(--crit); animation: breathe 4s ease-in-out infinite; }
+.digits.warning  { color: var(--caution); }
+.digits.critical { color: var(--crit-ink); text-shadow: var(--crit-glow); animation: breathe 4s ease-in-out infinite; }
 
 /* A slow breath rather than a pulse — noticeable, not alarming. */
 @keyframes breathe {
@@ -164,8 +229,8 @@ a:hover { color: var(--accent-strong); }
 }
 
 .btn-ok:hover   { color: var(--ok);   border-color: var(--ok); }
-.btn-warn:hover { color: var(--warn); border-color: var(--warn); }
-.btn-crit:hover { color: var(--crit); border-color: var(--crit); }
+.btn-warn:hover { color: var(--warn-ink); border-color: var(--warn); }
+.btn-crit:hover { color: var(--crit-ink); border-color: var(--crit); }
 
 input[type="text"],
 input[type="number"],
@@ -332,13 +397,47 @@ body.chrome-hidden .chrome {
 
 /* ── The mark in the dark ────────────────────────────────────
    Navy ink on a transparent ground, which all but disappears against a dark
-   page. Flattened to one light tone rather than inverted: inverting turns the
-   university's navy into a cream that belongs to nobody. The two-tone
-   waterfall is lost either way, and a legible monotone mark is better than an
-   accurate invisible one. */
+   page. Flattened to white rather than inverted: inverting turns the
+   university's navy into a cream that belongs to nobody, and white on Belmont
+   Blue is how Belmont's own mark appears on dark materials. In light mode it
+   keeps its printed colours. */
 :root[data-theme="dark"] .logo-area img,
 :root[data-theme="dark"] .logo-placeholder img {
-    filter: brightness(0) invert(0.82);
+    filter: brightness(0) invert(1);
+}
+
+/* ── The top bar ─────────────────────────────────────────────
+   White over a Belmont Blue rule in light mode; a faint lift over a
+   Belmont Red rule in dark. What sits on it takes the bar's own
+   colours, so the bar can change without each page knowing. */
+
+.topbar {
+    background: var(--bar-bg);
+    border-bottom: 3px solid var(--bar-rule);
+}
+
+.topbar h1 { color: var(--bar-ink); }
+.topbar a { color: var(--bar-link); }
+.topbar a:hover { color: var(--bar-ink); }
+
+.topbar .icon-btn,
+.topbar .icon-btn:disabled:hover,
+.topbar .icon-btn.locked:hover { color: var(--bar-ink-dim); border-color: var(--bar-line); }
+.topbar .icon-btn:hover { color: var(--bar-ink); border-color: var(--bar-ink); }
+
+.topbar .segmented { border-color: var(--bar-line); }
+.topbar .segmented button,
+.topbar .segmented button:disabled:hover { color: var(--bar-ink-dim); }
+.topbar .segmented button:hover { color: var(--bar-ink); }
+.topbar .segmented button.active { background: var(--bar-wash); color: var(--bar-ink); }
+
+/* ── A red message in the dark ───────────────────────────────
+   Light Gray like any other message, so it can be read, with a red
+   rule under it so it still says red. */
+:root[data-theme="dark"] [data-tone="red"] {
+    text-decoration: underline var(--belmont-red);
+    text-decoration-thickness: 0.12em;
+    text-underline-offset: 0.3em;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -59,8 +59,6 @@
             align-items: center;
             gap: 18px;
             padding: 14px 28px;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
             backdrop-filter: blur(12px);
         }
 
@@ -115,8 +113,12 @@
             transition: width 0.9s linear, background 1.2s ease;
         }
 
-        .progress-bar.warning  { background: var(--warn); }
+        .progress-bar.warning  { background: var(--caution); }
         .progress-bar.critical { background: var(--crit); }
+
+        /* The last seconds' bar is heavier, not only redder, so it cannot be
+           taken for the warning. A transform, so nothing below it moves. */
+        .progress-container:has(.progress-bar.critical) { transform: scaleY(2.4); }
 
         /* A message is the one thing on screen allowed to interrupt,
            so it stays legible — but it takes up no room when empty. */
@@ -306,7 +308,7 @@
     <canvas id="ambient"></canvas>
     <div class="blackout" id="blackout"></div>
 
-    <div class="header chrome">
+    <div class="header chrome topbar">
         <!-- Filled from the timer list on load. -->
         <div class="segmented" id="timerTabs"></div>
 
@@ -529,8 +531,8 @@
         /* Discreet stand-ins for the controller's black / red / green. */
         const MESSAGE_COLORS = {
             black: 'var(--text)',
-            red:   'var(--crit)',
-            green: 'var(--ok)'
+            red:   'var(--crit-ink)',
+            green: 'var(--ok-ink)'
         };
 
         const el = {
@@ -580,6 +582,7 @@
             if (state.message.text) {
                 el.message.textContent = state.message.text;
                 el.message.style.color = MESSAGE_COLORS[state.message.color] || 'var(--text)';
+                el.message.dataset.tone = state.message.color || 'black';
             } else {
                 el.message.textContent = '';
             }
@@ -647,7 +650,7 @@
 
         let cssW = 0, cssH = 0;
         let shownLevel = 1;       // eased fill level, 0..1
-        let waveRgb = { r: 110, g: 125, b: 148 };
+        let waveRgb = { r: 40, g: 116, b: 175 };
 
         function resize() {
             const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -663,7 +666,7 @@
         function cssVarRgb(name) {
             const hex = getComputedStyle(document.documentElement)
                 .getPropertyValue(name).trim().replace('#', '');
-            if (hex.length !== 6) return { r: 110, g: 125, b: 148 };
+            if (hex.length !== 6) return { r: 40, g: 116, b: 175 };
             return {
                 r: parseInt(hex.slice(0, 2), 16),
                 g: parseInt(hex.slice(2, 4), 16),
@@ -708,7 +711,7 @@
             shownLevel += (target - shownLevel) * 0.04;
 
             const level = store.level(activeTimerId);
-            const goal = cssVarRgb(level === 'critical' ? '--crit' : level === 'warning' ? '--warn' : '--accent');
+            const goal = cssVarRgb(level === 'critical' ? '--crit' : level === 'warning' ? '--caution' : '--accent');
             waveRgb.r += (goal.r - waveRgb.r) * 0.02;
             waveRgb.g += (goal.g - waveRgb.g) * 0.02;
             waveRgb.b += (goal.b - waveRgb.b) * 0.02;

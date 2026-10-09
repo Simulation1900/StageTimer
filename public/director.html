@@ -62,8 +62,10 @@
             transition: border-color 0.6s ease;
         }
 
-        .timer-card.running  { border-top-color: var(--ok); }
-        .timer-card.warning  { border-top-color: var(--warn); }
+        /* The tick follows the clock's own three colours, so a glance at the
+           card edge reads the same as a glance at the digits. */
+        .timer-card.running  { border-top-color: var(--accent); }
+        .timer-card.warning  { border-top-color: var(--caution); }
         .timer-card.critical { border-top-color: var(--crit); }
 
         .card-header {
@@ -106,7 +108,7 @@
             transition: background 0.3s ease;
         }
 
-        .status-badge.running::before { background: var(--ok); }
+        .status-badge.running::before { background: var(--mark); }
 
         .card-body {
             flex: 1;
@@ -137,8 +139,12 @@
             transition: width 0.9s linear, background 1.2s ease;
         }
 
-        .card-progress-bar.warning  { background: var(--warn); }
+        .card-progress-bar.warning  { background: var(--caution); }
         .card-progress-bar.critical { background: var(--crit); }
+
+        /* The last seconds' bar is heavier, not only redder, so it cannot be
+           taken for the warning. A transform, so nothing below it moves. */
+        .card-progress-container:has(.card-progress-bar.critical) { transform: scaleY(2.4); }
 
         .card-message {
             width: 100%;
@@ -179,7 +185,7 @@
 </head>
 <body>
     <div class="page-wrapper">
-        <div class="header panel">
+        <div class="header panel topbar">
             <div>
                 <h1>Director View</h1>
                 <a href="/" class="back-link">Home</a>
@@ -222,7 +228,7 @@
 
         socket.on('connect', () => socket.emit('joinAll'));
 
-        const MESSAGE_COLORS = { black: 'var(--text)', red: 'var(--crit)', green: 'var(--ok)' };
+        const MESSAGE_COLORS = { black: 'var(--text)', red: 'var(--crit-ink)', green: 'var(--ok-ink)' };
 
         /* One card per timer, from a single template rather than a set of
            near-identical copies of the same markup. Timers can be added and
@@ -284,6 +290,7 @@
             if (state.message.text) {
                 ui.message.textContent = state.message.text;
                 ui.message.style.color = MESSAGE_COLORS[state.message.color] || 'var(--text)';
+                ui.message.dataset.tone = state.message.color || 'black';
             } else {
                 ui.message.textContent = '';
             }
