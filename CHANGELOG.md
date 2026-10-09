@@ -9,6 +9,20 @@ not the shape of the code.
 
 ---
 
+## 2026-10-09 — In Belmont's colours
+
+### Changed
+- **The controller, director and displays use Belmont University's digital
+  palette**, matching the rest of the suite. Light is white throughout, the
+  header included, over a Belmont Blue rule, with Belmont Blue as the accent;
+  dark is Belmont Blue with Light Gray text and Belmont Red as the accent. The
+  logo is white in dark mode.
+- **The countdown keeps three states a room can read:** normal in blue,
+  warning at 80% in amber, and critical at 95% in Belmont Red, still
+  breathing. Critical also gets a red halo on its digits and a heavier
+  progress bar, in both modes, so it differs from the warning by more than
+  colour for anyone who cannot tell amber from red with motion reduced.
+
 ## 2026-09-17 — Timers you can add, and a controller that signs in
 
 ### Added
